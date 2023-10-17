@@ -9,8 +9,7 @@ LIBS = deps/libnfllib_static.a -lgmp -lmpfr -L deps/ -lflint -lquadmath
 all: bdlop ntru_bdlop ntru ntru_shuffle ntru_pismall
 
 bdlop: src/bdlop.cpp src/bgv.cpp ${TEST} ${BENCH} ${INCLUDES}
-	${CPP} ${CFLAGS} -c src/bgv.cpp -o bgv.o
-	${CPP} ${CFLAGS} -DMAIN src/bdlop.cpp bgv.o ${TEST} ${BENCH} -o bdlop ${LIBS}
+	${CPP} ${CFLAGS} -DMAIN src/bdlop.cpp ${TEST} ${BENCH} -o bdlop ${LIBS}
 
 ntru_bdlop: src/ntru_bdlop.cpp ${TEST} ${BENCH} ${INCLUDES}
 	${CPP} ${CFLAGS} -DMAIN src/ntru_bdlop.cpp ${TEST} ${BENCH} -o ntru_bdlop ${LIBS}
