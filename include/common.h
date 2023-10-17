@@ -18,10 +18,6 @@ using namespace std;
 
 /* Parameter v in the commitment  scheme (laximum l1-norm of challs). */
 #define NONZERO     36
-/* Security level to attain. */
-#define LEVEL       128
-/* The \infty-norm bound of certain elements. */
-#define BETA        1
 /* Width k of the commitment matrix. */
 #define WIDTH        4
 /* Height of the commitment matrix. */
@@ -30,26 +26,14 @@ using namespace std;
 #ifndef SIZE
 #define SIZE        2
 #endif
-/* Large modulus. */
-#define PRIMEQ      "302231454903657293688833"
-/* Small modulus. */
-#define PRIMEP      2
 /* Degree of the irreducible polynomial. */
-#define DEGREE      4096 //2048
+#define DEGREE      4096 
 /* Sigma for the commitment gaussian distribution. */
 #define SIGMA_C     (1u << 12)
 /* Sigma for the boundness proof. */
-#define SIGMA_B1     (11585u)
-/* Sigma for the boundness proof. */
-#define SIGMA_B2     (1e66l)
-/* Norm bound for boundness proof. */
-#define BOUND_B     "6678434726570384949248"
 /* Parties that run the distributed decryption protocol. */
 #define PARTIES     4
 /* Security level for Distributed Decryption. */
-#define BGVSEC      40
-/* Bound for Distributed Decryption = 2^BGVSEC * q/(2 * p * PARTIES). */
-#define BOUND_D     "750837175903336127688539820910095018"
 
 /*
  * NTRU DEFINEs
