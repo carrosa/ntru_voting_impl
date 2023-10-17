@@ -18,8 +18,6 @@
 #define MSGS         1000
 
 
-// Input til shuffle er 1 mld ikke 2.
-
 static void lin_hash(ntru_params::poly_q &beta, ntru_comkey_t &key, ntru_commit_t x,
                      ntru_commit_t y, ntru_params::poly_q alpha[2], ntru_params::poly_q &u,
                      ntru_params::poly_q t, ntru_params::poly_q _t) {
@@ -466,30 +464,11 @@ static int run(ntru_commit_t com[MSGS], vector<ntru_params::poly_q> m,
         _ms[i] = _ms[i] - rho;
         cs[i].c1 = com[i].c1;
         cs[i].c2 = com[i].c2 - rho;
-        /*cs[i].c2 = com[i].c2 * rho;
-        cs[i].c2 = cs[i].c2 + com[i].c2 * rho;*/
         t1 = m[i];
         t1.ntt_pow_phi();  // Convert t1 to NTT domain
-//        ms[i] = ms[i] + t1 * rho;
         t1 = _m[i];
         t1.ntt_pow_phi();  // Convert t1 to NTT domain
-//        _ms[i] = _ms[i] + t1 * rho;
     }
-/*
-    // Adjust the commitment key
-    for (size_t i = 0; i < NTRU_HEIGHT; i++) {
-        for (size_t j = NTRU_HEIGHT; j < NTRU_WIDTH; j++) {
-            _key.A1[i][j - NTRU_HEIGHT] = key.A1[i][j - NTRU_HEIGHT];
-        }
-    }*/
-    /*_key.A2[0] = 0;
-    _key.A2[1] = 1;
-    for (size_t j = 2; j < NTRU_WIDTH; j++) {
-        _key.A2[j] = key.A2[j];
-    }
-    for (size_t j = 2; j < NTRU_WIDTH; j++) {
-        _key.A2[j] = _key.A2[j] + rho * key.A2[j];
-    }*/
 
     // Call the shuffle_prover function
     shuffle_prover(y, _y, t, _t, u, d, s, cs, ms, _ms, r, rho, key);
@@ -513,40 +492,20 @@ static void run2(ntru_commit_t com[MSGS], vector<ntru_params::poly_q> m,
     for (size_t i = 0; i < MSGS; i++) {
         ms[i] = m[i];
         ms[i].ntt_pow_phi();  // Convert ms[i] to NTT domain
+        ms[i] = ms[i] - rho;
         _ms[i] = _m[i];
         _ms[i].ntt_pow_phi();  // Convert _ms[i] to NTT domain
+        _ms[i] = _ms[i] - rho;
         cs[i].c1 = com[i].c1;
-        cs[i].c2 = com[i].c2 * rho;
-        cs[i].c2 = cs[i].c2 + com[i].c2 * rho;
+        cs[i].c2 = com[i].c2 - rho;
         t1 = m[i];
         t1.ntt_pow_phi();  // Convert t1 to NTT domain
-        ms[i] = ms[i] + t1 * rho;
         t1 = _m[i];
         t1.ntt_pow_phi();  // Convert t1 to NTT domain
-        _ms[i] = _ms[i] + t1 * rho;
-    }
-
-    // Adjust the commitment key
-    for (size_t i = 0; i < NTRU_HEIGHT; i++) {
-        for (size_t j = NTRU_HEIGHT; j < NTRU_WIDTH; j++) {
-            _key.A1[i][j - NTRU_HEIGHT] = key.A1[i][j - NTRU_HEIGHT];
-        }
-    }
-    _key.A2[0] = 0;
-    _key.A2[1] = rho;
-    for (size_t j = 2; j < NTRU_WIDTH; j++) {
-        _key.A2[j] = key.A2[j];
-    }
-    for (size_t j = 2; j < NTRU_WIDTH; j++) {
-        _key.A2[j] = _key.A2[j] + rho * key.A2[j];
     }
 
     // Call the shuffle_prover function
-    shuffle_prover(y, _y, t, _t, u, d, s, cs, ms, _ms, r, rho, _key);
-    //return 1;
-
-    // Call and return the result of the shuffle_verifier function
-//    return shuffle_verifier(y, _y, t, _t, u, d, s, cs, _ms, rho, _key);
+    shuffle_prover(y, _y, t, _t, u, d, s, cs, ms, _ms, r, rho, key);
 }
 
 

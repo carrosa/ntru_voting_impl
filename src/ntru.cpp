@@ -375,8 +375,8 @@ static void bench() {
 
 // Main function to run tests and benchmarks.
 int main(int argc, char *arv[]) {
-    //printf("\n** Tests for NTRU encryption:\n\n");
-    //ntru_test();
+    printf("\n** Tests for NTRU encryption:\n\n");
+    ntru_test();
 
     printf("\n** Benchmarks for NTRU encryption:\n\n");
     bench();

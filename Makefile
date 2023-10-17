@@ -6,29 +6,11 @@ BENCH = src/bench.c src/cpucycles.c
 TEST = src/test.c
 LIBS = deps/libnfllib_static.a -lgmp -lmpfr -L deps/ -lflint -lquadmath
 
-all: bdlop bgv shuffle pismall pibnd ntru_bdlop ntru ntru_shuffle ntru_pismall
+all: bdlop ntru_bdlop ntru ntru_shuffle ntru_pismall
 
 bdlop: src/bdlop.cpp src/bgv.cpp ${TEST} ${BENCH} ${INCLUDES}
 	${CPP} ${CFLAGS} -c src/bgv.cpp -o bgv.o
 	${CPP} ${CFLAGS} -DMAIN src/bdlop.cpp bgv.o ${TEST} ${BENCH} -o bdlop ${LIBS}
-
-bgv: src/bgv.cpp ${TEST} ${BENCH} ${INCLUDES}
-	${CPP} ${CFLAGS} -DMAIN src/bgv.cpp ${TEST} ${BENCH} -o bgv ${LIBS}
-
-shuffle: src/shuffle.cpp src/bdlop.cpp ${TEST} ${BENCH} ${INCLUDES}
-	${CPP} ${CFLAGS} -c src/sample_z_small.c -o sample_z_small.o
-	${CPP} ${CFLAGS} -c src/bdlop.cpp -o bdlop.o
-	${CPP} ${CFLAGS} -DMAIN src/shuffle.cpp sample_z_small.o bdlop.o ${TEST} ${BENCH} ${BLAKE3} -o shuffle ${LIBS}
-
-pismall: src/bdlop.cpp src/pismall.cpp ${TEST} ${BENCH} ${INCLUDES}
-	${CPP} ${CFLAGS} -DSIZE=3 -c src/bdlop.cpp -o bdlop.o
-	${CPP} ${CFLAGS} -DSIZE=3 -DMAIN src/pismall.cpp bdlop.o ${TEST} ${BENCH} ${BLAKE3} -o pismall ${LIBS}
-
-pibnd: src/pibnd.cpp ${TEST} ${BENCH} ${INCLUDES}
-	${CPP} ${CFLAGS} -c src/sample_z_small.c -o sample_z_small.o
-	${CPP} ${CFLAGS} -c src/sample_z_large.c -o sample_z_large.o
-	${CPP} ${CFLAGS} -DMAIN src/pibnd.cpp sample_z_small.o sample_z_large.o ${TEST} ${BENCH} ${BLAKE3} -o pibnd ${LIBS}
-
 
 ntru_bdlop: src/ntru_bdlop.cpp ${TEST} ${BENCH} ${INCLUDES}
 	${CPP} ${CFLAGS} -DMAIN src/ntru_bdlop.cpp ${TEST} ${BENCH} -o ntru_bdlop ${LIBS}
@@ -47,4 +29,4 @@ ntru_shuffle: src/ntru_shuffle.cpp src/ntru_bdlop.cpp ${TEST} ${BENCH} ${INCLUDE
 	${CPP} ${CFLAGS} -DMAIN src/ntru_shuffle.cpp sample_z_small.o ntru_bdlop.o ${TEST} ${BENCH} ${BLAKE3} -o ntru_shuffle ${LIBS}
 
 clean:
-	rm -f *.o bdlop bgv shuffle pismall pibnd ntru ntru_shuffle ntru_pismall ntru_bdlop
+	rm -f *.o bdlop ntru ntru_shuffle ntru_pismall ntru_bdlop
