@@ -1,6 +1,6 @@
 # Lattice-based verifiable mix-net
 
-Code accompannying the paper "Verifiable Mix-Nets and Distributed Decryption for Voting from Lattice-Based Assumptions", accepted for publication at ACM CCS 2023.
+Code accompannying the paper "Concrete NTRU Security and Advances in Practical Lattice-Based Electronic Voting".
 
 Depedencies are the [NFLlib](https://github.com/quarkslab/NFLlib) and [FLINT](https://flintlib.org/doc/) 2.9 libraries.
 NFLLib is already included in this repository, but instructions for installing its dependencies can be found in the link above.
