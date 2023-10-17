@@ -27,7 +27,7 @@ using namespace std;
 #define SIZE        2
 #endif
 /* Degree of the irreducible polynomial. */
-#define DEGREE      4096 
+#define DEGREE      4096
 /* Sigma for the commitment gaussian distribution. */
 #define SIGMA_C     (1u << 12)
 /* Sigma for the boundness proof. */

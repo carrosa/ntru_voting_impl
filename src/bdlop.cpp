@@ -480,10 +480,6 @@ static void bench() {
     vector < params::poly_q > m(SIZE);  // Messages.
     params::poly_p _m;  // Message in another domain.
 
-    bgvkey_t pk;  // Public key for BGV encryption.
-    params::poly_q sk;  // Secret key for BGV encryption.
-    bgvenc_t c;  // Ciphertext.
-
     // Benchmark key generation.
     BENCH_SMALL("bdlp_keygen", bdlop_keygen(key));
 
@@ -513,16 +509,6 @@ static void bench() {
                 s[j] = f * r[j];
             }
             BENCH_ADD(bdlop_open(com, m, key, s, f));
-        } BENCH_END;
-
-    // Generate BGV encryption keys and sample a message.
-    bgv_keygen(pk, sk);
-    bgv_sample_message(_m);
-
-    // Benchmark commitment generation for ciphertexts.
-    BENCH_BEGIN("bdlop_commit (ciphertext)") {
-            bgv_encrypt(c, pk, _m);
-            BENCH_ADD(bdlop_commit(com, c, key, r));
         } BENCH_END;
 }
 
