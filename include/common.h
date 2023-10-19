@@ -24,10 +24,10 @@ using namespace std;
 #define HEIGHT        1
 /* Dimension of the committed messages. */
 #ifndef SIZE
-#define SIZE        2
+#define SIZE        1
 #endif
 /* Degree of the irreducible polynomial. */
-#define DEGREE      4096
+#define DEGREE      2048//4096
 /* Sigma for the commitment gaussian distribution. */
 #define SIGMA_C     (1u << 12)
 /* Sigma for the boundness proof. */
@@ -59,13 +59,14 @@ using namespace std;
 
 namespace params {
     using poly_p = nfl::poly_from_modulus<uint32_t, DEGREE, 30>;
-    using poly_q = nfl::poly_from_modulus<uint64_t, DEGREE, 124>;
-    using poly_big = nfl::poly_from_modulus<uint64_t, 4 * DEGREE, 124>;
+    using poly_q = nfl::poly_from_modulus<uint64_t, DEGREE, 62>;
+    using poly_big = nfl::poly_from_modulus<uint64_t, 4 * DEGREE, 62>;
 }
 
 namespace ntru_params {
     using poly_p = nfl::poly_from_modulus<uint32_t, NTRU_DEGREE, 30>;
     using poly_q = nfl::poly_from_modulus<uint64_t, NTRU_DEGREE, 62>;
+    using poly_big = nfl::poly_from_modulus<uint64_t, 4 * DEGREE, 62>;
 }
 
 /*============================================================================*/

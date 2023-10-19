@@ -256,34 +256,6 @@ int bdlop_open(commit_t & com, vector < params::poly_q > m, comkey_t & key,
     return result;
 }
 
-
-// This function computes a commitment `com` to a ciphertext `c` using the provided commitment key `key` and randomness `r`.
-void bdlop_commit(commit_t & com, bgvenc_t & c, comkey_t & key,
-                  vector < params::poly_q > r) {
-    // Declare a temporary polynomial `_m` (though it's not used in the provided code).
-    params::poly_q _m;
-
-    // Compute the first component of the commitment using the matrix `A1` from the commitment key and a subset of the randomness vector `r`.
-    com.c1 = r[0];
-    for (size_t i = 0; i < HEIGHT; i++) {
-        for (size_t j = 0; j < r.size() - HEIGHT; j++) {
-            com.c1 = com.c1 + key.A1[i][j] * r[j + HEIGHT];
-        }
-    }
-
-    // Resize the second component of the commitment `com.c2` to have 2 elements.
-    com.c2.resize(2);
-
-    // Compute the first element of the second component of the commitment.
-    // It's a combination of randomness, elements from the matrix `A2` of the commitment key, and the `u` component of the ciphertext `c`.
-    com.c2[0] = r[1] + key.A2[0][1] * r[3] + c.u;
-
-    // Compute the second element of the second component of the commitment.
-    // It's a combination of randomness, elements from the matrix `A2` of the commitment key, and the `v` component of the ciphertext `c`.
-    com.c2[1] = r[2] + key.A2[0][2] * r[3] + c.v;
-}
-
-
 #ifdef MAIN
 
 // Test function for single message commitments.
