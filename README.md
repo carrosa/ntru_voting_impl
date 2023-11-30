@@ -1,4 +1,4 @@
-# Lattice-based verifiable mix-net
+# Concrete NTRU Security and Advances in Practical Lattice-Based Electronic Voting
 
 Code accompannying the paper "Concrete NTRU Security and Advances in Practical Lattice-Based Electronic Voting".
 
