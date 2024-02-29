@@ -1,6 +1,6 @@
-# Concrete NTRU Security and Advances in Practical Lattice-Based Electronic Voting
+# More Efficient Post-Quantum Electronic Voting from NTRU 
 
-Code accompannying the paper "Concrete NTRU Security and Advances in Practical Lattice-Based Electronic Voting" for PETS 2024. 
+Code accompannying the paper "More Efficient Post-Quantum Electronic Voting from NTRU" (Submission #95) for PETS 2024. 
 
 Depedencies are the [NFLlib](https://github.com/quarkslab/NFLlib) and [FLINT](https://flintlib.org/doc/) 2.9 libraries.
 NFLLib is already included in this repository, but instructions for installing its dependencies can be found in the link above.
