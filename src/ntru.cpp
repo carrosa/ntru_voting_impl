@@ -36,7 +36,6 @@ void ntru_sample_message(ntru_params::poly_p &m) {
 }
 
 /**
- * INFO - THIS FUNCTION IS COPIED FROM shuffle.cpp
  * @brief Computes the multiplicative inverse of a polynomial in a given field.
  *
  * @param inv Output parameter to store the computed inverse polynomial.
@@ -96,9 +95,10 @@ void poly_inverse(ntru_params::poly_q &inv, ntru_params::poly_q p) {
     }
 }
 
-[[maybe_unused]]
-bool ntru_test_norm(ntru_params::poly_q r, uint64_t sigma_sqr, uint64_t t) {
-    std::cout << "\nSigma^2: " << sigma_sqr << "\n";
+/*
+ * Test norm of polynomial less than some bound sqrRoot(t^2*sigma^2*degree)
+ * */
+bool ntru_test_norm(ntru_params::poly_q r, double sigma_sqr, double t) {
     array<mpz_t, ntru_params::poly_q::degree> coeffs;
     mpz_t norm, qDivBy2, tmp;
     mpz_inits(norm, qDivBy2, tmp, nullptr);
@@ -113,7 +113,7 @@ bool ntru_test_norm(ntru_params::poly_q r, uint64_t sigma_sqr, uint64_t t) {
         mpz_mul(tmp, coeffs[i], coeffs[i]);
         mpz_add(norm, norm, tmp);
     }
-    uint64_t bound = t * t * sigma_sqr * ntru_params::poly_q::degree;
+    long double bound = t * t * sigma_sqr * ntru_params::poly_q::degree;
     int result = mpz_cmp_ui(norm, bound) < 0;
     mpz_clears(norm, qDivBy2, tmp, nullptr);
     for (size_t i = 0; i < ntru_params::poly_q::degree; i++) {
@@ -132,17 +132,19 @@ void ntru_keygen(ntru_params::poly_q &pk, ntru_params::poly_q &sk) {
         mpz_init2(coeffs[i], ntru_params::poly_q::bits_in_moduli_product() << 2);
     }
 
-    for (size_t k = 0; k < ntru_params::poly_q::degree; k++) {
-        int64_t coeff_f;
-        do {
-            coeff_f = sample_z(0.0, NTRU_SIGMA);
-        } while ((k == 0 && coeff_f % NTRU_PRIMEP != 1) || (k >= 1 && coeff_f % NTRU_PRIMEP != 0));
-        int64_t coeff_g = sample_z(0.0, NTRU_SIGMA);
-        mpz_set_si(coeffs_f[k], coeff_f);
-        mpz_set_si(coeffs_g[k], coeff_g);
-    }
-    f.mpz2poly(coeffs_f);
-    g.mpz2poly(coeffs_g);
+    do {
+        for (size_t k = 0; k < ntru_params::poly_q::degree; k++) {
+            int64_t coeff_f;
+            do {
+                coeff_f = sample_z(0.0, NTRU_SIGMA);
+            } while ((k == 0 && coeff_f % NTRU_PRIMEP != 1) || (k >= 1 && coeff_f % NTRU_PRIMEP != 0));
+            int64_t coeff_g = sample_z(0.0, NTRU_SIGMA);
+            mpz_set_si(coeffs_f[k], coeff_f);
+            mpz_set_si(coeffs_g[k], coeff_g);
+        }
+        f.mpz2poly(coeffs_f);
+        g.mpz2poly(coeffs_g);
+    } while (!ntru_test_norm(f, NTRU_SIGMA*NTRU_SIGMA, 1.058));
 
     poly_inverse(f_inv, f);
 
