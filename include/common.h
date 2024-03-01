@@ -40,7 +40,7 @@ using namespace std;
  * */
 #define NTRU_PRIMEQ 576460752303439873
 #define NTRU_PRIMEP 2
-#define NTRU_SIGMA 7
+#define NTRU_SIGMA 7.12
 #define NTRU_DEGREE 2048
 #define NTRU_BOUND_D "144183102358236620"
 #define NTRU_PARTIES 4
