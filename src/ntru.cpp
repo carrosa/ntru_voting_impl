@@ -14,7 +14,7 @@
 
 void ntru_sample_message(ntru_params::poly_p &m) {
     // Same as BGV, but we are going to use different params so created a specific one.
-    std::array<mpz_t, NTRU_DEGREE> coeffs;
+    std::array <mpz_t, NTRU_DEGREE> coeffs;
     uint64_t buf;
     size_t bits_in_moduli_product = ntru_params::poly_p::bits_in_moduli_product();
     for (size_t i = 0; i < ntru_params::poly_p::degree; i++) {
@@ -43,7 +43,7 @@ void ntru_sample_message(ntru_params::poly_p &m) {
  */
 void poly_inverse(ntru_params::poly_q &inv, ntru_params::poly_q p) {
     // Declare an array to store coefficients of the polynomial
-    std::array<mpz_t, ntru_params::poly_q::degree> coeffs;
+    std::array <mpz_t, ntru_params::poly_q::degree> coeffs;
     // Declare a variable to store the modulus of the field
     fmpz_t q;
     // Declare variables to store the polynomial and the irreducible polynomial
@@ -99,7 +99,7 @@ void poly_inverse(ntru_params::poly_q &inv, ntru_params::poly_q p) {
  * Test norm of polynomial less than some bound sqrRoot(t^2*sigma^2*degree)
  * */
 bool ntru_test_norm(ntru_params::poly_q r, double sigma_sqr, double t) {
-    array<mpz_t, ntru_params::poly_q::degree> coeffs;
+    array <mpz_t, ntru_params::poly_q::degree> coeffs;
     mpz_t norm, qDivBy2, tmp;
     mpz_inits(norm, qDivBy2, tmp, nullptr);
     for (size_t i = 0; i < ntru_params::poly_q::degree; i++) {
@@ -124,7 +124,7 @@ bool ntru_test_norm(ntru_params::poly_q r, double sigma_sqr, double t) {
 
 void ntru_keygen(ntru_params::poly_q &pk, ntru_params::poly_q &sk) {
     ntru_params::poly_q f, g, f_inv;
-    array<mpz_t, ntru_params::poly_q::degree> coeffs_f, coeffs_g, coeffs;
+    array <mpz_t, ntru_params::poly_q::degree> coeffs_f, coeffs_g, coeffs;
 
     for (size_t i = 0; i < ntru_params::poly_q::degree; i++) {
         mpz_init2(coeffs_f[i], ntru_params::poly_q::bits_in_moduli_product() << 2);
@@ -144,7 +144,7 @@ void ntru_keygen(ntru_params::poly_q &pk, ntru_params::poly_q &sk) {
         }
         f.mpz2poly(coeffs_f);
         g.mpz2poly(coeffs_g);
-    } while (!ntru_test_norm(f, NTRU_SIGMA*NTRU_SIGMA, 1.058));
+    } while (!ntru_test_norm(f, NTRU_SIGMA * NTRU_SIGMA, 1.058) || !ntru_test_norm(g, NTRU_SIGMA * NTRU_SIGMA, 1.058));
 
     poly_inverse(f_inv, f);
 
@@ -176,7 +176,7 @@ void ntru_encrypt(ntru_params::poly_q &c, ntru_params::poly_q &pk, ntru_params::
     ntru_params::poly_q s = nfl::ZO_dist();
     ntru_params::poly_q e = nfl::ZO_dist();
     ntru_params::poly_q m_;
-    std::array<mpz_t, NTRU_DEGREE> coeffs;
+    std::array <mpz_t, NTRU_DEGREE> coeffs;
 
     for (int i = 0; i < ntru_params::poly_q::degree; i++) {
         mpz_init2(coeffs[i], ntru_params::poly_q::bits_in_moduli_product() << 2);
@@ -202,7 +202,7 @@ void ntru_add(ntru_params::poly_q &c, ntru_params::poly_q &c1, ntru_params::poly
 }
 
 void ntru_decrypt(ntru_params::poly_p &m, ntru_params::poly_q &c, ntru_params::poly_q &sk) {
-    std::array<mpz_t, NTRU_DEGREE> coeffs;
+    std::array <mpz_t, NTRU_DEGREE> coeffs;
     ntru_params::poly_q t = sk * c;
     mpz_t qDivBy2;
 
@@ -227,7 +227,7 @@ void ntru_decrypt(ntru_params::poly_p &m, ntru_params::poly_q &c, ntru_params::p
 }
 
 void ntru_distdec(ntru_params::poly_q &dsj, ntru_params::poly_q &ci, ntru_params::poly_q &dkj) {
-    std::array<mpz_t, NTRU_DEGREE> coeffs;
+    std::array <mpz_t, NTRU_DEGREE> coeffs;
     ntru_params::poly_q dsij, Ej;
     mpz_t qDivBy2, bound;
 
@@ -256,7 +256,7 @@ void ntru_distdec(ntru_params::poly_q &dsj, ntru_params::poly_q &ci, ntru_params
 }
 
 void ntru_comb(ntru_params::poly_p &m, ntru_params::poly_q c, ntru_params::poly_q dsj[], size_t shares) {
-    std::array<mpz_t, NTRU_DEGREE> coeffs;
+    std::array <mpz_t, NTRU_DEGREE> coeffs;
     ntru_params::poly_q v;
     mpz_t qDivBy2;
 
