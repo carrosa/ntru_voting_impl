@@ -18,7 +18,7 @@ using namespace std;
  */
 // This function tests if the norm of a polynomial `r` is less than a certain bound.
 // The bound is determined by the parameter `sigma_sqr`.
-bool ntru_bdlop_test_norm(ntru_params::poly_q r, uint64_t sigma_sqr) {
+bool ntru_bdlop_test_norm(ntru_params::poly_q r, double_t sigma_sqr) {
     // Declare an array to store the coefficients of the polynomial `r`.
     array<mpz_t, ntru_params::poly_q::degree> coeffs;
 
@@ -55,7 +55,7 @@ bool ntru_bdlop_test_norm(ntru_params::poly_q r, uint64_t sigma_sqr) {
     }
 
     // Compute the bound as (4 * sigma * sqrt(N))^2 = 16 * sigma^2 * N.
-    uint64_t bound = 16 * sigma_sqr * ntru_params::poly_q::degree;
+    double_t bound = 16 * sigma_sqr * ntru_params::poly_q::degree;
 //    std::cout << "\n\n\nBOUND:\n" << bound << "\n";
 //    gmp_printf("\n\nNORM:\n %Zd\n", norm);
     // Compare the computed norm with the bound. If the norm is less than the bound, `result` will be true.

@@ -98,7 +98,7 @@ void poly_inverse(ntru_params::poly_q &inv, ntru_params::poly_q p) {
 /*
  * Test norm of polynomial less than some bound sqrRoot(t^2*sigma^2*degree)
  * */
-bool ntru_test_norm(ntru_params::poly_q r, double sigma_sqr, double t) {
+bool ntru_test_norm(ntru_params::poly_q r, double_t sigma_sqr, double_t t) {
     array <mpz_t, ntru_params::poly_q::degree> coeffs;
     mpz_t norm, qDivBy2, tmp;
     mpz_inits(norm, qDivBy2, tmp, nullptr);
@@ -113,7 +113,7 @@ bool ntru_test_norm(ntru_params::poly_q r, double sigma_sqr, double t) {
         mpz_mul(tmp, coeffs[i], coeffs[i]);
         mpz_add(norm, norm, tmp);
     }
-    long double bound = t * t * sigma_sqr * ntru_params::poly_q::degree;
+    double_t bound = t * t * sigma_sqr * ntru_params::poly_q::degree;
     int result = mpz_cmp_ui(norm, bound) < 0;
     mpz_clears(norm, qDivBy2, tmp, nullptr);
     for (size_t i = 0; i < ntru_params::poly_q::degree; i++) {

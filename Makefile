@@ -6,10 +6,7 @@ BENCH = src/bench.c src/cpucycles.c
 TEST = src/test.c
 LIBS = deps/libnfllib_static.a -lgmp -lmpfr -L deps/ -lflint -lquadmath
 
-all: bdlop ntru_bdlop ntru ntru_shuffle ntru_pismall
-
-bdlop: src/bdlop.cpp ${TEST} ${BENCH} ${INCLUDES}
-	${CPP} ${CFLAGS} -DMAIN src/bdlop.cpp ${TEST} ${BENCH} -o bdlop ${LIBS}
+all: ntru_bdlop ntru ntru_shuffle ntru_pismall
 
 ntru_bdlop: src/ntru_bdlop.cpp ${TEST} ${BENCH} ${INCLUDES}
 	${CPP} ${CFLAGS} -DMAIN src/ntru_bdlop.cpp ${TEST} ${BENCH} -o ntru_bdlop ${LIBS}
@@ -28,4 +25,4 @@ ntru_shuffle: src/ntru_shuffle.cpp src/ntru_bdlop.cpp ${TEST} ${BENCH} ${INCLUDE
 	${CPP} ${CFLAGS} -DMAIN src/ntru_shuffle.cpp sample_z_small.o ntru_bdlop.o ${TEST} ${BENCH} ${BLAKE3} -o ntru_shuffle ${LIBS}
 
 clean:
-	rm -f *.o bdlop ntru ntru_shuffle ntru_pismall ntru_bdlop
+	rm -f *.o ntru ntru_shuffle ntru_pismall ntru_bdlop

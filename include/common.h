@@ -118,7 +118,7 @@ void bdlop_sample_rand(vector<params::poly_q> &r);
 
 void bdlop_sample_chal(params::poly_q &f);
 
-bool bdlop_test_norm(params::poly_q r, uint64_t sigma_sqr);
+bool bdlop_test_norm(params::poly_q r, double_t sigma_sqr);
 
 void bdlop_commit(commit_t &com, vector<params::poly_q> m, comkey_t &key, vector<params::poly_q> r);
 
@@ -141,7 +141,7 @@ void ntru_bdlop_sample_rand(vector<ntru_params::poly_q> &r);
 
 void ntru_bdlop_sample_chal(ntru_params::poly_q &f);
 
-bool ntru_bdlop_test_norm(ntru_params::poly_q r, uint64_t sigma_sqr);
+bool ntru_bdlop_test_norm(ntru_params::poly_q r, double_t sigma_sqr);
 
 void ntru_bdlop_commit(ntru_commit_t &com, ntru_params::poly_q &m, ntru_comkey_t &key, vector<ntru_params::poly_q> r);
 
