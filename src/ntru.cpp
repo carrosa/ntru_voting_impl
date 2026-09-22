@@ -297,16 +297,16 @@ static void ntru_test() {
     TEST_BEGIN("NTRU encryption is consistent") {
         ntru_encrypt(c1, pk, m);  // Encrypt the message.
         ntru_decrypt(_m, c1, sk);  // Decrypt the ciphertext.
-        TEST_ASSERT(m - _m == 0, end);  // Check that the decrypted message matches the original.
+        TEST_ASSERT(util::equal(m, _m), end);  // Check that the decrypted message matches the original.
 
         ntru_sample_message(m);  // Sample another message.
         ntru_decrypt(_m, c1, sk);  // Decrypt the previous ciphertext.
-        TEST_ASSERT(m - _m != 0, end);  // Check that the decrypted message does not match the new message.
+        TEST_ASSERT(!util::equal(m, _m), end);  // Check that the decrypted message does not match the new message.
 
         ntru_encrypt(c1, pk, m);  // Encrypt the new message.
         ntru_keygen(pk, sk);  // Generate a new key pair.
         ntru_decrypt(_m, c1, sk);  // Decrypt the ciphertext with the new secret key.
-        TEST_ASSERT(m - _m != 0, end);  // Check that the decryption is not successful with the wrong key.
+        TEST_ASSERT(!util::equal(m, _m), end);  // Check that the decryption is not successful with the wrong key.
     }
     TEST_END;
     TEST_BEGIN("NTRU distributed decryption is consistent") {
@@ -317,12 +317,12 @@ static void ntru_test() {
         for (size_t j = 1; j < NTRU_PARTIES; j++) {
             acc = acc + s[j];
         }
-        TEST_ASSERT(sk - acc == 0, end);
+        TEST_ASSERT(util::equal(sk, acc), end);
         for (size_t j = 0; j < NTRU_PARTIES; j++) {
             ntru_distdec(t[j], c1, s[j]);
         }
         ntru_comb(_m, c1, t, NTRU_PARTIES);
-        TEST_ASSERT(m - _m == 0, end);
+        TEST_ASSERT(util::equal(m, _m), end);
     }
     TEST_END;
 

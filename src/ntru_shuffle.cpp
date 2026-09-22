@@ -309,7 +309,7 @@ static void lin_prover(ntru_params::poly_q y[NTRU_WIDTH], ntru_params::poly_q _y
 static int lin_verifier(ntru_params::poly_q z[NTRU_WIDTH], ntru_params::poly_q _z[NTRU_WIDTH],
                         ntru_params::poly_q t, ntru_params::poly_q _t, ntru_params::poly_q u,
                         ntru_commit_t x, ntru_commit_t _x, ntru_params::poly_q alpha[2], ntru_comkey_t &key) {
-    ntru_params::poly_q beta, v, _v, tmp, zero = 0;
+    ntru_params::poly_q beta, v, _v, tmp;
     int result = 1;
 
     /* Sample challenge. */
@@ -335,12 +335,12 @@ static int lin_verifier(ntru_params::poly_q z[NTRU_WIDTH], ntru_params::poly_q _
         }
     }
 
+    /* Being zero is preserved by the inverse transform, so these compare in
+     * the NTT domain and skip it. */
     tmp = t + beta * x.c1 - v;
-    tmp.invntt_pow_invphi();
-    result &= (tmp == zero);
+    result &= util::is_zero(tmp);
     tmp = _t + beta * _x.c1 - _v;
-    tmp.invntt_pow_invphi();
-    result &= (tmp == zero);
+    result &= util::is_zero(tmp);
 
     v = 0;
     for (int i = 0; i < NTRU_WIDTH; i++) {
@@ -348,10 +348,7 @@ static int lin_verifier(ntru_params::poly_q z[NTRU_WIDTH], ntru_params::poly_q _
     }
     t = (alpha[0] * x.c2 + alpha[1] - _x.c2) * beta + u;
 
-    t.invntt_pow_invphi();
-    v.invntt_pow_invphi();
-
-    result &= ((t - v) == 0);
+    result &= util::equal(t, v);
     return result;
 }
 
@@ -589,7 +586,7 @@ static void test() {
         alpha[0] = alpha[0] * alpha[1];
         alpha[0].invntt_pow_invphi();
         alpha[1].invntt_pow_invphi();
-        TEST_ASSERT(alpha[0] == alpha[1], end);
+        TEST_ASSERT(util::equal(alpha[0], alpha[1]), end);
     }
     TEST_END;
 
