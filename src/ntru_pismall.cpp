@@ -1,8 +1,7 @@
 #include <math.h>
 #include <stdlib.h>
 
-#include <flint/flint.h>
-#include <flint/fmpz_mod_poly.h>
+#include "flint_util.h"
 
 #include "assert.h"
 #include "bench.h"
@@ -13,7 +12,11 @@
 #define ETA 325
 #define R (HEIGHT + 1) // HEIGHT + 1
 #define V (WIDTH+1) // WIDTH + 1
+/* Number of relations the proof is amortized over. Overridable, so that the
+ * proof can be run on a machine without tens of gigabytes of RAM. */
+#ifndef TAU
 #define TAU 1000
+#endif
 
 /* Had to move those to global to avoid overflowing the stack. */
 params::poly_q A[R][V], s[TAU][V], t[TAU][R];
@@ -42,7 +45,7 @@ static void pismall_hash(fmpz_t x, fmpz_t beta0, fmpz_t beta[TAU][3], fmpz_t q,
 
     // Initialize the rand variable using the flint_randinit function from the
     // FLINT library
-    flint_randinit(rand);
+    flint_rand_init(rand);
 
     // Initialize the hasher variable using the blake3_hasher_init function from
     // the BLAKE3 library
@@ -67,7 +70,7 @@ static void pismall_hash(fmpz_t x, fmpz_t beta0, fmpz_t beta[TAU][3], fmpz_t q,
     // Copy the next sizeof(ulong) bytes from the middle of hash to seed[1]
     memcpy(&seed[1], hash + BLAKE3_OUT_LEN / 2, sizeof(ulong));
     // Seed the random number generator rand with seed[0] and seed[1]
-    flint_randseed(rand, seed[0], seed[1]);
+    flint_rand_set_seed(rand, seed[0], seed[1]);
     // Generate a random number modulo q and store it in x
     fmpz_randm(x, rand, q);
     // Generate another random number modulo q and store it in beta0
@@ -89,7 +92,7 @@ static void poly_to(params::poly_q &out, fmpz_mod_poly_t &in,
     }
 
     for (size_t i = 0; i < params::poly_q::degree; i++) {
-        fmpz_mod_poly_get_coeff_mpz(coeffs[i], in, i, ctx);
+        flint_poly_get_coeff_mpz(coeffs[i], in, i, ctx);
     }
 
     out.mpz2poly(coeffs);
@@ -111,10 +114,10 @@ static void poly_encode(params::poly_big &out, fmpz_mod_poly_t in0,
     }
 
     for (i = 0; i < params::poly_q::degree; i++) {
-        fmpz_mod_poly_get_coeff_mpz(coeffs[i], in0, i, ctx);
+        flint_poly_get_coeff_mpz(coeffs[i], in0, i, ctx);
     }
     for (; i < 2 * params::poly_q::degree; i++) {
-        fmpz_mod_poly_get_coeff_mpz(coeffs[i], in1, i, ctx);
+        flint_poly_get_coeff_mpz(coeffs[i], in1, i, ctx);
     }
     for (; i < 2 * params::poly_q::degree + ETA; i++) {
         fmpz_get_mpz(coeffs[i], in[i - 2 * params::poly_q::degree]);
@@ -143,7 +146,7 @@ static void poly_from(fmpz_mod_poly_t &out, params::poly_q &in,
     fmpz_mod_poly_zero(out, ctx);
     fmpz_mod_poly_fit_length(out, params::poly_q::degree, ctx);
     for (size_t i = 0; i < params::poly_q::degree; i++) {
-        fmpz_mod_poly_set_coeff_mpz(out, i, coeffs[i], ctx);
+        flint_poly_set_coeff_mpz(out, i, coeffs[i], ctx);
     }
 
     in.ntt_pow_phi();
@@ -372,7 +375,7 @@ static int pismall_prover(commit_t &com, fmpz_t x, fmpz_mod_poly_t f[V],
         for (size_t i = 0; i < TAU; i++) {
             for (size_t j = 0; j < 3; j++) {
                 for (size_t l = 0; l < params::poly_q::degree; l++) {
-                    fmpz_mod_poly_set_coeff_mpz(poly, l, v[j][i][k][l], ctx_q);
+                    flint_poly_set_coeff_mpz(poly, l, v[j][i][k][l], ctx_q);
                 }
                 if (j == 0) {
                     poly_from(zero, s[i][j], ctx_q);
@@ -434,7 +437,7 @@ static int pismall_prover(commit_t &com, fmpz_t x, fmpz_mod_poly_t f[V],
                     fmpz_mod_poly_add(h[0][k], h[0][k], poly, ctx);
                 }
                 for (size_t l = 0; l < params::poly_q::degree; l++) {
-                    fmpz_mod_poly_set_coeff_mpz(poly, l, v[j][i - 1][k][l], ctx_q);
+                    flint_poly_set_coeff_mpz(poly, l, v[j][i - 1][k][l], ctx_q);
                 }
                 fmpz_mod_poly_scalar_mul_fmpz(poly, poly, beta[i - 1][j], ctx_q);
                 fmpz_mod_poly_add(h[1][k], h[1][k], poly, ctx);
@@ -688,9 +691,9 @@ static void test(flint_rand_t rand) {
 
 int main() {
     flint_rand_t rand;
-    flint_randinit(rand);
+    flint_rand_init(rand);
 
     printf("\n** Tests for lattice-based AEX proof:\n\n");
     test(rand);
-    flint_randclear(rand);
+    flint_rand_clear(rand);
 }

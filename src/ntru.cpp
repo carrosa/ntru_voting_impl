@@ -5,8 +5,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <gmp.h>
-#include <flint/flint.h>
-#include <flint/fmpz_mod_poly.h>
+#include "flint_util.h"
 #include "blake3.h"
 #include "assert.h"
 #include "sample_z_small.h"
@@ -74,14 +73,14 @@ void poly_inverse(ntru_params::poly_q &inv, ntru_params::poly_q p) {
 
     // Set the polynomial coefficients from the array
     for (size_t i = 0; i < ntru_params::poly_q::degree; i++) {
-        fmpz_mod_poly_set_coeff_mpz(poly, i, coeffs[i], ctx_q);
+        flint_poly_set_coeff_mpz(poly, i, coeffs[i], ctx_q);
     }
     // Compute the multiplicative inverse of the polynomial modulo the irreducible polynomial
     fmpz_mod_poly_invmod(poly, poly, irred, ctx_q);
 
     // Retrieve the coefficients of the inverse polynomial
     for (size_t i = 0; i < ntru_params::poly_q::degree; i++) {
-        fmpz_mod_poly_get_coeff_mpz(coeffs[i], poly, i, ctx_q);
+        flint_poly_get_coeff_mpz(coeffs[i], poly, i, ctx_q);
     }
 
     // Convert the coefficient representation back to the polynomial form
@@ -178,7 +177,7 @@ void ntru_encrypt(ntru_params::poly_q &c, ntru_params::poly_q &pk, ntru_params::
     ntru_params::poly_q m_;
     std::array <mpz_t, NTRU_DEGREE> coeffs;
 
-    for (int i = 0; i < ntru_params::poly_q::degree; i++) {
+    for (size_t i = 0; i < ntru_params::poly_q::degree; i++) {
         mpz_init2(coeffs[i], ntru_params::poly_q::bits_in_moduli_product() << 2);
     }
 
@@ -192,7 +191,7 @@ void ntru_encrypt(ntru_params::poly_q &c, ntru_params::poly_q &pk, ntru_params::
 
     c = (pk * s + e) + (pk * s + e) + m_;
 
-    for (int i = 0; i < ntru_params::poly_q::degree; i++) {
+    for (size_t i = 0; i < ntru_params::poly_q::degree; i++) {
         mpz_clear(coeffs[i]);
     }
 }

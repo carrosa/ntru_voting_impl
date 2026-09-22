@@ -1,8 +1,7 @@
 #include <math.h>
 #include <stdlib.h>
 
-#include <flint/flint.h>
-#include <flint/fmpz_mod_poly.h>
+#include "flint_util.h"
 
 #include "blake3.h"
 #include "common.h"
@@ -15,7 +14,11 @@
 /* Private definitions                                                        */
 /*============================================================================*/
 
+/* Number of messages in the shuffle. Overridable, like TAU in ntru_pismall:
+ * the arrays below are MSGS long and the proof holds all of them in memory. */
+#ifndef MSGS
 #define MSGS         1000
+#endif
 
 
 static void lin_hash(ntru_params::poly_q &beta, ntru_comkey_t &key, ntru_commit_t x,
@@ -84,12 +87,12 @@ static void poly_inverse(ntru_params::poly_q &inv, ntru_params::poly_q p) {
     fmpz_mod_poly_set_coeff_ui(irred, 0, 1, ctx_q);
 
     for (size_t i = 0; i < ntru_params::poly_q::degree; i++) {
-        fmpz_mod_poly_set_coeff_mpz(poly, i, coeffs[i], ctx_q);
+        flint_poly_set_coeff_mpz(poly, i, coeffs[i], ctx_q);
     }
     fmpz_mod_poly_invmod(poly, poly, irred, ctx_q);
 
     for (size_t i = 0; i < ntru_params::poly_q::degree; i++) {
-        fmpz_mod_poly_get_coeff_mpz(coeffs[i], poly, i, ctx_q);
+        flint_poly_get_coeff_mpz(coeffs[i], poly, i, ctx_q);
     }
 
     inv.mpz2poly(coeffs);
