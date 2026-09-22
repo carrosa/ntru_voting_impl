@@ -20,6 +20,58 @@
 #define MSGS         1000
 #endif
 
+/* An ntru_params::poly_q is 16 KiB, so anything dimensioned by MSGS is far too
+ * large to be a local variable: at MSGS = 1000 the buffers below add up to
+ * hundreds of megabytes, which gcc reported as stack frames of 295 MB for run()
+ * and 328 MB for bench(). They are allocated on the heap by shuffle_alloc() and
+ * the pointers index exactly like the arrays they replace; the functions that
+ * take them as arguments keep their signatures, since an array parameter is a
+ * pointer either way. inv_tmp is simul_inverse's scratch space and _r, theta
+ * and inv are the prover's, all equally oversized. */
+static ntru_commit_t *com, *d, *cs;
+static vector<ntru_params::poly_q> *r, *_r;
+static ntru_params::poly_q *ms, *_ms, *s, *theta, *inv, *inv_tmp;
+static ntru_params::poly_q (*y)[NTRU_WIDTH], (*_y)[NTRU_WIDTH];
+static ntru_params::poly_q *t, *_t, *u;
+
+static void shuffle_alloc(void) {
+    com = new ntru_commit_t[MSGS];
+    d = new ntru_commit_t[MSGS];
+    cs = new ntru_commit_t[MSGS];
+    r = new vector<ntru_params::poly_q>[MSGS];
+    _r = new vector<ntru_params::poly_q>[MSGS];
+    ms = new ntru_params::poly_q[MSGS];
+    _ms = new ntru_params::poly_q[MSGS];
+    s = new ntru_params::poly_q[MSGS];
+    theta = new ntru_params::poly_q[MSGS];
+    inv = new ntru_params::poly_q[MSGS];
+    inv_tmp = new ntru_params::poly_q[MSGS];
+    y = new ntru_params::poly_q[MSGS][NTRU_WIDTH];
+    _y = new ntru_params::poly_q[MSGS][NTRU_WIDTH];
+    t = new ntru_params::poly_q[MSGS];
+    _t = new ntru_params::poly_q[MSGS];
+    u = new ntru_params::poly_q[MSGS];
+}
+
+static void shuffle_free(void) {
+    delete[] com;
+    delete[] d;
+    delete[] cs;
+    delete[] r;
+    delete[] _r;
+    delete[] ms;
+    delete[] _ms;
+    delete[] s;
+    delete[] theta;
+    delete[] inv;
+    delete[] inv_tmp;
+    delete[] y;
+    delete[] _y;
+    delete[] t;
+    delete[] _t;
+    delete[] u;
+}
+
 
 static void lin_hash(ntru_params::poly_q &beta, ntru_comkey_t &key, ntru_commit_t x,
                      ntru_commit_t y, ntru_params::poly_q alpha[2], ntru_params::poly_q &u,
@@ -104,12 +156,12 @@ static void poly_inverse(ntru_params::poly_q &inv, ntru_params::poly_q p) {
 }
 
 static void simul_inverse(ntru_params::poly_q inv[MSGS], ntru_params::poly_q m[MSGS]) {
-    ntru_params::poly_q u, t[MSGS];
+    ntru_params::poly_q u;
     inv[0] = m[0];
-    t[0] = m[0];
+    inv_tmp[0] = m[0];
 
     for (size_t i = 1; i < MSGS; i++) {
-        t[i] = m[i];
+        inv_tmp[i] = m[i];
         inv[i] = inv[i - 1] * m[i];
     }
 
@@ -120,7 +172,7 @@ static void simul_inverse(ntru_params::poly_q inv[MSGS], ntru_params::poly_q m[M
 
     for (size_t i = MSGS - 1; i > 0; i--) {
         inv[i] = u * inv[i - 1];
-        u = u * t[i];
+        u = u * inv_tmp[i];
     }
     inv[0] = u;
 }
@@ -337,8 +389,7 @@ static void shuffle_prover(ntru_params::poly_q y[MSGS][NTRU_WIDTH],
                            ntru_params::poly_q _ms[MSGS], vector<ntru_params::poly_q> r[MSGS],
                            ntru_params::poly_q rho, ntru_comkey_t &key) {
     ntru_params::poly_q t0;
-    vector<ntru_params::poly_q> _r[MSGS];
-    ntru_params::poly_q alpha[2], beta, theta[MSGS], inv[MSGS];
+    ntru_params::poly_q alpha[2], beta;
 
     /* Prover samples theta_i and computes commitments D_i. */
     for (size_t i = 0; i < MSGS - 1; i++) {
@@ -451,10 +502,7 @@ static int run(ntru_commit_t com[MSGS], vector<ntru_params::poly_q> m,
                vector<ntru_params::poly_q> _m, ntru_comkey_t &key,
                vector<ntru_params::poly_q> r[MSGS]) {
     // Declare local variables for the function
-    ntru_params::poly_q ms[MSGS], _ms[MSGS];
-    ntru_commit_t d[MSGS], cs[MSGS];
-    ntru_params::poly_q one, t1, rho, s[MSGS];
-    ntru_params::poly_q y[MSGS][NTRU_WIDTH], _y[MSGS][NTRU_WIDTH], t[MSGS], _t[MSGS], u[MSGS];
+    ntru_params::poly_q one, t1, rho;
     ntru_comkey_t _key;
 
     rho = nfl::uniform();  // Assign random values to rho
@@ -485,10 +533,7 @@ static void run2(ntru_commit_t com[MSGS], vector<ntru_params::poly_q> m,
                vector<ntru_params::poly_q> _m, ntru_comkey_t &key,
                vector<ntru_params::poly_q> r[MSGS]) {
     // Declare local variables for the function
-    ntru_params::poly_q ms[MSGS], _ms[MSGS];
-    ntru_commit_t d[MSGS], cs[MSGS];
-    ntru_params::poly_q one, t1, rho, s[MSGS];
-    ntru_params::poly_q y[MSGS][NTRU_WIDTH], _y[MSGS][NTRU_WIDTH], t[MSGS], _t[MSGS], u[MSGS];
+    ntru_params::poly_q one, t1, rho;
     ntru_comkey_t _key;
 
     rho = nfl::uniform();  // Assign random values to rho
@@ -517,9 +562,7 @@ static void run2(ntru_commit_t com[MSGS], vector<ntru_params::poly_q> m,
 
 static void test() {
     ntru_comkey_t key;
-    ntru_commit_t com[MSGS];
     vector<ntru_params::poly_q> m(MSGS), _m(MSGS);
-    vector<ntru_params::poly_q> r[MSGS];
 
     /* Generate commitment key-> */
     ntru_bdlop_keygen(key);
@@ -588,9 +631,7 @@ static void microbench() {
 
 static void bench() {
     ntru_comkey_t key;
-    ntru_commit_t com[MSGS];
     vector<ntru_params::poly_q> m(MSGS), _m(MSGS);
-    vector<ntru_params::poly_q> r[MSGS];
     ntru_params::poly_q y[NTRU_WIDTH], _y[NTRU_WIDTH], t, _t, u, alpha[2], beta;
 
     /* Generate commitment key-> */
@@ -636,6 +677,8 @@ static void bench() {
 }
 
 int main(int argc, char *argv[]) {
+    shuffle_alloc();
+
     printf("\n** Tests for lattice-based shuffle proof:\n\n");
     test();
 
@@ -644,6 +687,8 @@ int main(int argc, char *argv[]) {
 
     printf("\n** Benchmarks for lattice-based shuffle proof:\n\n");
     bench();
+
+    shuffle_free();
 }
 
 #endif

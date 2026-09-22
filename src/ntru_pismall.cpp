@@ -18,9 +18,32 @@
 #define TAU 1000
 #endif
 
-/* Had to move those to global to avoid overflowing the stack. */
-params::poly_q A[R][V], s[TAU][V], t[TAU][R];
-params::poly_big H0[V], _H[V], H[TAU][3];
+/* A params::poly_q is 16 KiB and a params::poly_big four times that, so the
+ * matrices dimensioned by TAU are hundreds of megabytes at the published
+ * parameters -- far too large for the stack, and large enough that reserving
+ * them for the whole run is worth avoiding. They are allocated on the heap by
+ * pismall_alloc() and the pointers index exactly like the arrays they
+ * replace. */
+params::poly_q (*A)[V], (*s)[V], (*t)[R];
+params::poly_big *H0, *_H, (*H)[3];
+
+static void pismall_alloc(void) {
+    A = new params::poly_q[R][V];
+    s = new params::poly_q[TAU][V];
+    t = new params::poly_q[TAU][R];
+    H0 = new params::poly_big[V];
+    _H = new params::poly_big[V];
+    H = new params::poly_big[TAU][3];
+}
+
+static void pismall_free(void) {
+    delete[] A;
+    delete[] s;
+    delete[] t;
+    delete[] H0;
+    delete[] _H;
+    delete[] H;
+}
 
 /*
  * @param[in] x         Integer of type fmpz_t from FLINT
@@ -224,9 +247,15 @@ static int pismall_prover(commit_t &com, fmpz_t x, fmpz_mod_poly_t f[V],
                           fmpz_t rh[ETA], vector<params::poly_q> rd,
                           comkey_t &key, fmpz_mod_poly_t lag[TAU + 1],
                           flint_rand_t prng, const fmpz_mod_ctx_t ctx) {
-    array<mpz_t, params::poly_q::degree> coeffs, coeffs0, v[3][TAU][V];
+    array<mpz_t, params::poly_q::degree> coeffs, coeffs0;
     fmpz_mod_poly_t poly, zero;
-    fmpz_t t, u, q, y[TAU], beta0, beta[TAU][3], r0[ETA], r[TAU][3][ETA];
+    fmpz_t t, u, q, beta0, r0[ETA];
+    /* Dimensioned by TAU, so on the heap: as locals these alone gave the
+     * prover a 499 MB stack frame at TAU = 1000. */
+    auto v = new array<mpz_t, params::poly_q::degree>[3][TAU][V];
+    auto y = new fmpz_t[TAU];
+    auto beta = new fmpz_t[TAU][3];
+    auto r = new fmpz_t[TAU][3][ETA];
     fmpz_mod_ctx_t ctx_q;
     vector<params::poly_q> d;
     params::poly_q s0[V];
@@ -432,7 +461,7 @@ static int pismall_prover(commit_t &com, fmpz_t x, fmpz_mod_poly_t f[V],
         for (size_t i = 1; i <= TAU; i++) {
             for (size_t j = 0; j < 3; j++) {
                 if (j == 0) {
-                    poly_from(poly, s[i][k], ctx_q);
+                    poly_from(poly, s[i - 1][k], ctx_q);
                     fmpz_mod_poly_scalar_mul_fmpz(poly, poly, beta[i - 1][j], ctx_q);
                     fmpz_mod_poly_add(h[0][k], h[0][k], poly, ctx);
                 }
@@ -476,6 +505,10 @@ static int pismall_prover(commit_t &com, fmpz_t x, fmpz_mod_poly_t f[V],
     for (size_t i = 0; i < ETA; i++) {
         fmpz_clear(r0[i]);
     }
+    delete[] v;
+    delete[] y;
+    delete[] beta;
+    delete[] r;
     return 1;
 }
 
@@ -693,7 +726,9 @@ int main() {
     flint_rand_t rand;
     flint_rand_init(rand);
 
+    pismall_alloc();
     printf("\n** Tests for lattice-based AEX proof:\n\n");
     test(rand);
+    pismall_free();
     flint_rand_clear(rand);
 }
