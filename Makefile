@@ -20,8 +20,9 @@ CFLAGS   = $(STD) $(OPT) $(WARN) -ggdb $(INCLUDE) $(DEFINE) $(CONFIG) -MMD -MP
 
 LIBS     = deps/libnfllib_static.a -lgmp -lmpfr -lquadmath
 # FLINT is a system library here, but CI builds its own, so keep the flags in
-# one variable that a build can override. Only the three protocol binaries need
-# it; the commitment on its own works through NFLlib.
+# one variable that a build can override. Only ntru_pismall needs it now that
+# ring inversion goes through the NTT slots rather than a dense FLINT
+# polynomial; everything else works through NFLlib alone.
 FLINT    = -lflint
 
 OBJ      = obj
@@ -88,7 +89,7 @@ ntru_bdlop: src/ntru_bdlop.cpp $(COMMON) $(STAMP)
 
 ntru: src/ntru.cpp $(OBJ)/sample_z_small.o $(COMMON) $(BLAKE3) $(STAMP)
 	$(CPP) $(CFLAGS) -DMAIN src/ntru.cpp $(OBJ)/sample_z_small.o \
-		$(COMMON) $(BLAKE3) -o $@ $(LIBS) $(FLINT)
+		$(COMMON) $(BLAKE3) -o $@ $(LIBS)
 
 ntru_pismall: src/ntru_pismall.cpp $(OBJ)/bdlop-size3.o $(COMMON) $(BLAKE3) \
 		$(STAMP)
@@ -98,7 +99,7 @@ ntru_pismall: src/ntru_pismall.cpp $(OBJ)/bdlop-size3.o $(COMMON) $(BLAKE3) \
 ntru_shuffle: src/ntru_shuffle.cpp $(OBJ)/ntru_bdlop.o \
 		$(OBJ)/sample_z_small.o $(COMMON) $(BLAKE3) $(STAMP)
 	$(CPP) $(CFLAGS) -DMAIN src/ntru_shuffle.cpp $(OBJ)/ntru_bdlop.o \
-		$(OBJ)/sample_z_small.o $(COMMON) $(BLAKE3) -o $@ $(LIBS) $(FLINT)
+		$(OBJ)/sample_z_small.o $(COMMON) $(BLAKE3) -o $@ $(LIBS)
 
 clean:
 	rm -rf $(OBJ) $(BIN) *.d

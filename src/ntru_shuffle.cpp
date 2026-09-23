@@ -1,7 +1,6 @@
 #include <math.h>
 #include <stdlib.h>
 
-#include "flint_util.h"
 
 #include "blake3.h"
 #include "common.h"
@@ -118,44 +117,8 @@ static void lin_hash(params::poly_q &beta, comkey_t &key, commit_t x,
     nfl::fastrandombytes_reseed();
 }
 
-static void poly_inverse(params::poly_q &inv, params::poly_q p) {
-    std::array<mpz_t, params::poly_q::degree> coeffs;
-    fmpz_t q;
-    fmpz_mod_poly_t poly, irred;
-    fmpz_mod_ctx_t ctx_q;
 
-    fmpz_init(q);
-    for (size_t i = 0; i < params::poly_q::degree; i++) {
-        mpz_init2(coeffs[i], (params::poly_q::bits_in_moduli_product() << 2));
-    }
-
-    fmpz_set_mpz(q, params::poly_q::moduli_product());
-    fmpz_mod_ctx_init(ctx_q, q);
-    fmpz_mod_poly_init(poly, ctx_q);
-    fmpz_mod_poly_init(irred, ctx_q);
-
-    p.poly2mpz(coeffs);
-    fmpz_mod_poly_set_coeff_ui(irred, params::poly_q::degree, 1, ctx_q);
-    fmpz_mod_poly_set_coeff_ui(irred, 0, 1, ctx_q);
-
-    for (size_t i = 0; i < params::poly_q::degree; i++) {
-        flint_poly_set_coeff_mpz(poly, i, coeffs[i], ctx_q);
-    }
-    fmpz_mod_poly_invmod(poly, poly, irred, ctx_q);
-
-    for (size_t i = 0; i < params::poly_q::degree; i++) {
-        flint_poly_get_coeff_mpz(coeffs[i], poly, i, ctx_q);
-    }
-
-    inv.mpz2poly(coeffs);
-
-    fmpz_clear(q);
-    for (size_t i = 0; i < params::poly_q::degree; i++) {
-        mpz_clear(coeffs[i]);
-    }
-}
-
-static void simul_inverse(params::poly_q inv[MSGS], params::poly_q m[MSGS]) {
+static int simul_inverse(params::poly_q inv[MSGS], params::poly_q m[MSGS]) {
     params::poly_q u;
     inv[0] = m[0];
     inv_tmp[0] = m[0];
@@ -166,15 +129,17 @@ static void simul_inverse(params::poly_q inv[MSGS], params::poly_q m[MSGS]) {
     }
 
     u = inv[MSGS - 1];
-    u.invntt_pow_invphi();
-    poly_inverse(u, u);
-    u.ntt_pow_phi();
+    if (!util::invert(u, u)) {
+        return 0;
+    }
 
     for (size_t i = MSGS - 1; i > 0; i--) {
         inv[i] = u * inv[i - 1];
         u = u * inv_tmp[i];
     }
     inv[0] = u;
+
+    return 1;
 }
 
 static int rej_sampling(params::poly_q z[NTRU_WIDTH], params::poly_q v[NTRU_WIDTH],
@@ -379,7 +344,7 @@ void shuffle_hash(params::poly_q &beta, commit_t c[MSGS], commit_t d[MSGS],
     nfl::fastrandombytes_reseed();
 }
 
-static void shuffle_prover(params::poly_q y[MSGS][NTRU_WIDTH],
+static int shuffle_prover(params::poly_q y[MSGS][NTRU_WIDTH],
                            params::poly_q _y[MSGS][NTRU_WIDTH], params::poly_q t[MSGS],
                            params::poly_q _t[MSGS], params::poly_q u[MSGS], commit_t d[MSGS],
                            params::poly_q s[MSGS], commit_t c[MSGS], params::poly_q ms[MSGS],
@@ -411,7 +376,9 @@ static void shuffle_prover(params::poly_q y[MSGS][NTRU_WIDTH],
     shuffle_hash(beta, c, d, _ms, rho);
 
     //Check relationship here
-    simul_inverse(inv, _ms);
+    if (!simul_inverse(inv, _ms)) {
+        return 0;
+    }
     for (size_t i = 0; i < MSGS - 1; i++) {
         if (i == 0) {
             s[0] = theta[0] * _ms[0] - beta * ms[0];
@@ -443,6 +410,8 @@ static void shuffle_prover(params::poly_q y[MSGS][NTRU_WIDTH],
         lin_prover(y[l], _y[l], t[l], _t[l], u[l], c[l], d[l], alpha, key, r[l],
                    _r[l]);
     }
+
+    return 1;
 }
 
 static int shuffle_verifier(params::poly_q y[MSGS][NTRU_WIDTH],
@@ -520,8 +489,9 @@ static int run(commit_t com[MSGS], vector<params::poly_q> m,
     }
 
     // Call the shuffle_prover function
-    shuffle_prover(y, _y, t, _t, u, d, s, cs, ms, _ms, r, rho, key);
-    //return 1;
+    if (!shuffle_prover(y, _y, t, _t, u, d, s, cs, ms, _ms, r, rho, key)) {
+        return 0;
+    }
 
     // Call and return the result of the shuffle_verifier function
     return shuffle_verifier(y, _y, t, _t, u, d, s, cs, _ms, rho, key);
@@ -581,13 +551,10 @@ static void test() {
     {
         params::poly_q alpha[2] = {nfl::uniform(), nfl::uniform()};
 
-        poly_inverse(alpha[1], alpha[0]);
         alpha[0].ntt_pow_phi();
-        alpha[1].ntt_pow_phi();
+        TEST_ASSERT(util::invert(alpha[1], alpha[0]) == 1, end);
         alpha[0] = alpha[0] * alpha[1];
         alpha[0] = alpha[0] * alpha[1];
-        alpha[0].invntt_pow_invphi();
-        alpha[1].invntt_pow_invphi();
         TEST_ASSERT(util::equal(alpha[0], alpha[1]), end);
     }
     TEST_END;
@@ -620,10 +587,9 @@ static void microbench() {
         }
     BENCH_END;
 
-    alpha[0].invntt_pow_invphi();
     BENCH_BEGIN("Polynomial inverse")
         {
-            BENCH_ADD(poly_inverse(alpha[1], alpha[0]));
+            BENCH_ADD(util::invert(alpha[1], alpha[0]));
         }
     BENCH_END;
 }

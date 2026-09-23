@@ -5,7 +5,6 @@
 #include <math.h>
 #include <stdlib.h>
 #include <gmp.h>
-#include "flint_util.h"
 #include "blake3.h"
 #include "assert.h"
 #include "sample_z_small.h"
@@ -40,59 +39,6 @@ void ntru_sample_message(params::poly_p &m) {
  * @param inv Output parameter to store the computed inverse polynomial.
  * @param p Input polynomial for which the inverse is to be computed.
  */
-void poly_inverse(params::poly_q &inv, params::poly_q p) {
-    // Declare an array to store coefficients of the polynomial
-    std::array <mpz_t, params::poly_q::degree> coeffs;
-    // Declare a variable to store the modulus of the field
-    fmpz_t q;
-    // Declare variables to store the polynomial and the irreducible polynomial
-    fmpz_mod_poly_t poly, irred;
-    // Declare a context variable for modular arithmetic operations
-    fmpz_mod_ctx_t ctx_q;
-
-    // Initialize the modulus variable
-    fmpz_init(q);
-    // Initialize the coefficients array with the appropriate bit size
-    for (size_t i = 0; i < params::poly_q::degree; i++) {
-        mpz_init2(coeffs[i], (params::poly_q::bits_in_moduli_product() << 2));
-    }
-
-    // Set the modulus value to the product of moduli for the polynomial
-    fmpz_set_mpz(q, params::poly_q::moduli_product());
-    // Initialize the context for modular arithmetic with the modulus
-    fmpz_mod_ctx_init(ctx_q, q);
-    // Initialize the polynomial and irreducible polynomial variables in the context
-    fmpz_mod_poly_init(poly, ctx_q);
-    fmpz_mod_poly_init(irred, ctx_q);
-
-    // Convert the polynomial to its coefficient representation
-    p.poly2mpz(coeffs);
-    // Define the irreducible polynomial for the field
-    fmpz_mod_poly_set_coeff_ui(irred, params::poly_q::degree, 1, ctx_q);
-    fmpz_mod_poly_set_coeff_ui(irred, 0, 1, ctx_q);
-
-    // Set the polynomial coefficients from the array
-    for (size_t i = 0; i < params::poly_q::degree; i++) {
-        flint_poly_set_coeff_mpz(poly, i, coeffs[i], ctx_q);
-    }
-    // Compute the multiplicative inverse of the polynomial modulo the irreducible polynomial
-    fmpz_mod_poly_invmod(poly, poly, irred, ctx_q);
-
-    // Retrieve the coefficients of the inverse polynomial
-    for (size_t i = 0; i < params::poly_q::degree; i++) {
-        flint_poly_get_coeff_mpz(coeffs[i], poly, i, ctx_q);
-    }
-
-    // Convert the coefficient representation back to the polynomial form
-    inv.mpz2poly(coeffs);
-
-    // Clear the memory allocated for the modulus
-    fmpz_clear(q);
-    // Clear the memory allocated for the coefficients array
-    for (size_t i = 0; i < params::poly_q::degree; i++) {
-        mpz_clear(coeffs[i]);
-    }
-}
 
 /*
  * Test norm of polynomial less than some bound sqrRoot(t^2*sigma^2*degree)
@@ -124,6 +70,7 @@ bool ntru_test_norm(params::poly_q r, double_t sigma_sqr, double_t t) {
 void ntru_keygen(params::poly_q &pk, params::poly_q &sk) {
     params::poly_q f, g, f_inv;
     array <mpz_t, params::poly_q::degree> coeffs_f, coeffs_g, coeffs;
+    int ok;
 
     for (size_t i = 0; i < params::poly_q::degree; i++) {
         mpz_init2(coeffs_f[i], params::poly_q::bits_in_moduli_product() << 2);
@@ -143,13 +90,18 @@ void ntru_keygen(params::poly_q &pk, params::poly_q &sk) {
         }
         f.mpz2poly(coeffs_f);
         g.mpz2poly(coeffs_g);
-    } while (!ntru_test_norm(f, NTRU_SIGMA * NTRU_SIGMA, 1.058) || !ntru_test_norm(g, NTRU_SIGMA * NTRU_SIGMA, 1.058));
+        /* KeyGen resamples when a norm is too large or when f is not invertible
+         * in R_q. The inverse is taken slot by slot, so f has to be in the NTT
+         * domain first; it stays there, which is where sk is wanted anyway. */
+        ok = ntru_test_norm(f, NTRU_SIGMA * NTRU_SIGMA, 1.058) &&
+             ntru_test_norm(g, NTRU_SIGMA * NTRU_SIGMA, 1.058);
+        if (ok) {
+            f.ntt_pow_phi();
+            ok = util::invert(f_inv, f);
+        }
+    } while (!ok);
 
-    poly_inverse(f_inv, f);
-
-    f.ntt_pow_phi();
     g.ntt_pow_phi();
-    f_inv.ntt_pow_phi();
 
     pk = g * f_inv;
     sk = f;
