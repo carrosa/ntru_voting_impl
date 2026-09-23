@@ -52,6 +52,9 @@ static void pismall_free(void) {
  * @param[in] q         Integer of type fmpz_t from FLINT
  * @param[in] com       Reference to a commit of type commit_t
  * */
+#define POLY_BYTES (params::poly_q::nmoduli * params::poly_q::degree * \
+                    sizeof(params::poly_q::value_type))
+
 static void pismall_hash(fmpz_t x, fmpz_t beta0, fmpz_t beta[TAU][3], fmpz_t q,
                          commit_t &com) {
     // Declare an array named hash of uint8_t (unsigned 8-bit integer) with length
@@ -76,13 +79,12 @@ static void pismall_hash(fmpz_t x, fmpz_t beta0, fmpz_t beta[TAU][3], fmpz_t q,
     // Update the hasher with data from com.c1 using the blake3_hasher_update
     // function. The data is treated as an array of uint8_t and has a size of 16 *
     // NTRU_DEGREE
-    blake3_hasher_update(&hasher, (const uint8_t *) com.c1.data(),
-                         16 * NTRU_DEGREE);
+    blake3_hasher_update(&hasher, (const uint8_t *) com.c1.data(), POLY_BYTES);
     // Iterate over the size of com.c2 and update the hasher with data from each
     // element of com.c2
     for (size_t i = 0; i < com.c2.size(); i++) {
         blake3_hasher_update(&hasher, (const uint8_t *) com.c2[i].data(),
-                             16 * NTRU_DEGREE);
+                             POLY_BYTES);
     }
 
     // Finalize the hashing process and store the result in the hash array
@@ -578,8 +580,7 @@ static int pismall_verifier(commit_t &com, fmpz_mod_poly_t f[V], fmpz_t rf[ETA],
     }
     one = 1;
     one.ntt_pow_phi();
-//    int result = bdlop_open(com, m, key, rd, one);
-    int result = 1;
+    int result = bdlop_open(com, m, key, rd, one);
     fmpz_clear(q);
     fmpz_clear(x);
     fmpz_clear(y);
