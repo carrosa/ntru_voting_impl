@@ -228,22 +228,30 @@ void ntru_decrypt(params::poly_p &m, params::poly_q &c, params::poly_q &sk) {
 void ntru_distdec(params::poly_q &dsj, params::poly_q &ci, params::poly_q &dkj) {
     std::array <mpz_t, NTRU_DEGREE> coeffs;
     params::poly_q dsij, Ej;
-    mpz_t qDivBy2, bound;
+    mpz_t qDivBy2, bound, span;
 
     mpz_init(qDivBy2);
     mpz_init(bound);
+    mpz_init(span);
     for (size_t i = 0; i < params::poly_q::degree; i++) {
         mpz_init2(coeffs[i], params::poly_q::bits_in_moduli_product() << 2);
     }
 
     mpz_fdiv_q_2exp(qDivBy2, params::poly_q::moduli_product(), 1);
     mpz_set_str(bound, NTRU_BOUND_D, 10);
+    /* S_B is the set of a with ||a||_inf <= B, so a coefficient is uniform over
+     * the 2B + 1 values in [-B, B]. Reducing modulo B alone, as this did, lands
+     * in [0, B): half the set, every coefficient non-negative, and twice the
+     * statistical distance that the noise drowning is there to bound. */
+    mpz_mul_ui(span, bound, 2);
+    mpz_add_ui(span, span, 1);
 
     Ej = nfl::uniform();
     Ej.poly2mpz(coeffs);
     for (size_t i = 0; i < params::poly_q::degree; i++) {
         util::center(coeffs[i], coeffs[i], params::poly_q::moduli_product(), qDivBy2);
-        mpz_mod(coeffs[i], coeffs[i], bound);
+        mpz_mod(coeffs[i], coeffs[i], span);
+        mpz_sub(coeffs[i], coeffs[i], bound);
     }
     Ej.mpz2poly(coeffs);
     Ej.ntt_pow_phi();
@@ -251,6 +259,13 @@ void ntru_distdec(params::poly_q &dsj, params::poly_q &ci, params::poly_q &dkj) 
     dsj = dsij;
     for (size_t i = 0; i < NTRU_PRIMEP; i++) {
         dsj = dsj + Ej;
+    }
+
+    mpz_clear(qDivBy2);
+    mpz_clear(bound);
+    mpz_clear(span);
+    for (size_t i = 0; i < params::poly_q::degree; i++) {
+        mpz_clear(coeffs[i]);
     }
 }
 
