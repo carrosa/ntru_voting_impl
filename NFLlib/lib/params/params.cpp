@@ -12,6 +12,7 @@ constexpr typename params<uint32_t>::value_type params<uint32_t>::invkMaxPolyDeg
 
 constexpr typename params<uint64_t>::value_type params<uint64_t>::P[];
 constexpr typename params<uint64_t>::value_type params<uint64_t>::Pn[];
+constexpr typename params<uint64_t>::value_type params<uint64_t>::Pn_hi[];
 constexpr typename params<uint64_t>::value_type params<uint64_t>::primitive_roots[];
 constexpr typename params<uint64_t>::value_type params<uint64_t>::invkMaxPolyDegree[];
 }

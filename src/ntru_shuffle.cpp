@@ -20,7 +20,7 @@
 #define MSGS         1000
 #endif
 
-/* An ntru_params::poly_q is 16 KiB, so anything dimensioned by MSGS is far too
+/* An params::poly_q is 16 KiB, so anything dimensioned by MSGS is far too
  * large to be a local variable: at MSGS = 1000 the buffers below add up to
  * hundreds of megabytes, which gcc reported as stack frames of 295 MB for run()
  * and 328 MB for bench(). They are allocated on the heap by shuffle_alloc() and
@@ -29,28 +29,28 @@
  * pointer either way. inv_tmp is simul_inverse's scratch space and _r, theta
  * and inv are the prover's, all equally oversized. */
 static ntru_commit_t *com, *d, *cs;
-static vector<ntru_params::poly_q> *r, *_r;
-static ntru_params::poly_q *ms, *_ms, *s, *theta, *inv, *inv_tmp;
-static ntru_params::poly_q (*y)[NTRU_WIDTH], (*_y)[NTRU_WIDTH];
-static ntru_params::poly_q *t, *_t, *u;
+static vector<params::poly_q> *r, *_r;
+static params::poly_q *ms, *_ms, *s, *theta, *inv, *inv_tmp;
+static params::poly_q (*y)[NTRU_WIDTH], (*_y)[NTRU_WIDTH];
+static params::poly_q *t, *_t, *u;
 
 static void shuffle_alloc(void) {
     com = new ntru_commit_t[MSGS];
     d = new ntru_commit_t[MSGS];
     cs = new ntru_commit_t[MSGS];
-    r = new vector<ntru_params::poly_q>[MSGS];
-    _r = new vector<ntru_params::poly_q>[MSGS];
-    ms = new ntru_params::poly_q[MSGS];
-    _ms = new ntru_params::poly_q[MSGS];
-    s = new ntru_params::poly_q[MSGS];
-    theta = new ntru_params::poly_q[MSGS];
-    inv = new ntru_params::poly_q[MSGS];
-    inv_tmp = new ntru_params::poly_q[MSGS];
-    y = new ntru_params::poly_q[MSGS][NTRU_WIDTH];
-    _y = new ntru_params::poly_q[MSGS][NTRU_WIDTH];
-    t = new ntru_params::poly_q[MSGS];
-    _t = new ntru_params::poly_q[MSGS];
-    u = new ntru_params::poly_q[MSGS];
+    r = new vector<params::poly_q>[MSGS];
+    _r = new vector<params::poly_q>[MSGS];
+    ms = new params::poly_q[MSGS];
+    _ms = new params::poly_q[MSGS];
+    s = new params::poly_q[MSGS];
+    theta = new params::poly_q[MSGS];
+    inv = new params::poly_q[MSGS];
+    inv_tmp = new params::poly_q[MSGS];
+    y = new params::poly_q[MSGS][NTRU_WIDTH];
+    _y = new params::poly_q[MSGS][NTRU_WIDTH];
+    t = new params::poly_q[MSGS];
+    _t = new params::poly_q[MSGS];
+    u = new params::poly_q[MSGS];
 }
 
 static void shuffle_free(void) {
@@ -73,9 +73,9 @@ static void shuffle_free(void) {
 }
 
 
-static void lin_hash(ntru_params::poly_q &beta, ntru_comkey_t &key, ntru_commit_t x,
-                     ntru_commit_t y, ntru_params::poly_q alpha[2], ntru_params::poly_q &u,
-                     ntru_params::poly_q t, ntru_params::poly_q _t) {
+static void lin_hash(params::poly_q &beta, ntru_comkey_t &key, ntru_commit_t x,
+                     ntru_commit_t y, params::poly_q alpha[2], params::poly_q &u,
+                     params::poly_q t, params::poly_q _t) {
     uint8_t hash[BLAKE3_OUT_LEN];
     blake3_hasher hasher;
 
@@ -118,45 +118,45 @@ static void lin_hash(ntru_params::poly_q &beta, ntru_comkey_t &key, ntru_commit_
     nfl::fastrandombytes_reseed();
 }
 
-static void poly_inverse(ntru_params::poly_q &inv, ntru_params::poly_q p) {
-    std::array<mpz_t, ntru_params::poly_q::degree> coeffs;
+static void poly_inverse(params::poly_q &inv, params::poly_q p) {
+    std::array<mpz_t, params::poly_q::degree> coeffs;
     fmpz_t q;
     fmpz_mod_poly_t poly, irred;
     fmpz_mod_ctx_t ctx_q;
 
     fmpz_init(q);
-    for (size_t i = 0; i < ntru_params::poly_q::degree; i++) {
-        mpz_init2(coeffs[i], (ntru_params::poly_q::bits_in_moduli_product() << 2));
+    for (size_t i = 0; i < params::poly_q::degree; i++) {
+        mpz_init2(coeffs[i], (params::poly_q::bits_in_moduli_product() << 2));
     }
 
-    fmpz_set_mpz(q, ntru_params::poly_q::moduli_product());
+    fmpz_set_mpz(q, params::poly_q::moduli_product());
     fmpz_mod_ctx_init(ctx_q, q);
     fmpz_mod_poly_init(poly, ctx_q);
     fmpz_mod_poly_init(irred, ctx_q);
 
     p.poly2mpz(coeffs);
-    fmpz_mod_poly_set_coeff_ui(irred, ntru_params::poly_q::degree, 1, ctx_q);
+    fmpz_mod_poly_set_coeff_ui(irred, params::poly_q::degree, 1, ctx_q);
     fmpz_mod_poly_set_coeff_ui(irred, 0, 1, ctx_q);
 
-    for (size_t i = 0; i < ntru_params::poly_q::degree; i++) {
+    for (size_t i = 0; i < params::poly_q::degree; i++) {
         flint_poly_set_coeff_mpz(poly, i, coeffs[i], ctx_q);
     }
     fmpz_mod_poly_invmod(poly, poly, irred, ctx_q);
 
-    for (size_t i = 0; i < ntru_params::poly_q::degree; i++) {
+    for (size_t i = 0; i < params::poly_q::degree; i++) {
         flint_poly_get_coeff_mpz(coeffs[i], poly, i, ctx_q);
     }
 
     inv.mpz2poly(coeffs);
 
     fmpz_clear(q);
-    for (size_t i = 0; i < ntru_params::poly_q::degree; i++) {
+    for (size_t i = 0; i < params::poly_q::degree; i++) {
         mpz_clear(coeffs[i]);
     }
 }
 
-static void simul_inverse(ntru_params::poly_q inv[MSGS], ntru_params::poly_q m[MSGS]) {
-    ntru_params::poly_q u;
+static void simul_inverse(params::poly_q inv[MSGS], params::poly_q m[MSGS]) {
+    params::poly_q u;
     inv[0] = m[0];
     inv_tmp[0] = m[0];
 
@@ -177,10 +177,10 @@ static void simul_inverse(ntru_params::poly_q inv[MSGS], ntru_params::poly_q m[M
     inv[0] = u;
 }
 
-static int rej_sampling(ntru_params::poly_q z[NTRU_WIDTH], ntru_params::poly_q v[NTRU_WIDTH],
+static int rej_sampling(params::poly_q z[NTRU_WIDTH], params::poly_q v[NTRU_WIDTH],
                         uint64_t s2) {
-    array<mpz_t, ntru_params::poly_q::degree> coeffs0, coeffs1;
-    ntru_params::poly_q t;
+    array<mpz_t, params::poly_q::degree> coeffs0, coeffs1;
+    params::poly_q t;
     mpz_t dot, norm, qDivBy2, tmp;
     double r, M = 1.75;
     int64_t seed;
@@ -193,12 +193,12 @@ static int rej_sampling(ntru_params::poly_q z[NTRU_WIDTH], ntru_params::poly_q v
     mpf_init(u);
     gmp_randinit_mt(state);
     mpz_inits(dot, norm, qDivBy2, tmp, nullptr);
-    for (size_t i = 0; i < ntru_params::poly_q::degree; i++) {
-        mpz_init2(coeffs0[i], (ntru_params::poly_q::bits_in_moduli_product() << 2));
-        mpz_init2(coeffs1[i], (ntru_params::poly_q::bits_in_moduli_product() << 2));
+    for (size_t i = 0; i < params::poly_q::degree; i++) {
+        mpz_init2(coeffs0[i], (params::poly_q::bits_in_moduli_product() << 2));
+        mpz_init2(coeffs1[i], (params::poly_q::bits_in_moduli_product() << 2));
     }
 
-    mpz_fdiv_q_2exp(qDivBy2, ntru_params::poly_q::moduli_product(), 1);
+    mpz_fdiv_q_2exp(qDivBy2, params::poly_q::moduli_product(), 1);
     mpz_set_ui(norm, 0);
     mpz_set_ui(dot, 0);
     for (int i = 0; i < NTRU_WIDTH; i++) {
@@ -208,11 +208,11 @@ static int rej_sampling(ntru_params::poly_q z[NTRU_WIDTH], ntru_params::poly_q v
         t = v[i];
         t.invntt_pow_invphi();
         t.poly2mpz(coeffs1);
-        for (size_t i = 0; i < ntru_params::poly_q::degree; i++) {
+        for (size_t i = 0; i < params::poly_q::degree; i++) {
             util::center(coeffs0[i], coeffs0[i],
-                         ntru_params::poly_q::moduli_product(), qDivBy2);
+                         params::poly_q::moduli_product(), qDivBy2);
             util::center(coeffs1[i], coeffs1[i],
-                         ntru_params::poly_q::moduli_product(), qDivBy2);
+                         params::poly_q::moduli_product(), qDivBy2);
             mpz_mul(tmp, coeffs0[i], coeffs1[i]);
             mpz_add(dot, dot, tmp);
             mpz_mul(tmp, coeffs1[i], coeffs1[i]);
@@ -232,39 +232,39 @@ static int rej_sampling(ntru_params::poly_q z[NTRU_WIDTH], ntru_params::poly_q v
 
     mpf_clear(u);
     mpz_clears(dot, norm, qDivBy2, tmp, nullptr);
-    for (size_t i = 0; i < ntru_params::poly_q::degree; i++) {
+    for (size_t i = 0; i < params::poly_q::degree; i++) {
         mpz_clear(coeffs0[i]);
         mpz_clear(coeffs1[i]);
     }
     return result;
 }
 
-static void lin_prover(ntru_params::poly_q y[NTRU_WIDTH], ntru_params::poly_q _y[NTRU_WIDTH],
-                       ntru_params::poly_q &t, ntru_params::poly_q &_t, ntru_params::poly_q &u,
-                       ntru_commit_t x, ntru_commit_t _x, ntru_params::poly_q alpha[2],
-                       ntru_comkey_t &key, vector<ntru_params::poly_q> r,
-                       vector<ntru_params::poly_q> _r) {
-    ntru_params::poly_q beta, tmp[NTRU_WIDTH], _tmp[NTRU_WIDTH];
-    array<mpz_t, ntru_params::poly_q::degree> coeffs;
+static void lin_prover(params::poly_q y[NTRU_WIDTH], params::poly_q _y[NTRU_WIDTH],
+                       params::poly_q &t, params::poly_q &_t, params::poly_q &u,
+                       ntru_commit_t x, ntru_commit_t _x, params::poly_q alpha[2],
+                       ntru_comkey_t &key, vector<params::poly_q> r,
+                       vector<params::poly_q> _r) {
+    params::poly_q beta, tmp[NTRU_WIDTH], _tmp[NTRU_WIDTH];
+    array<mpz_t, params::poly_q::degree> coeffs;
     mpz_t qDivBy2;
     int rej0, rej1;
 
     mpz_init(qDivBy2);
-    for (size_t i = 0; i < ntru_params::poly_q::degree; i++) {
-        mpz_init2(coeffs[i], (ntru_params::poly_q::bits_in_moduli_product() << 2));
+    for (size_t i = 0; i < params::poly_q::degree; i++) {
+        mpz_init2(coeffs[i], (params::poly_q::bits_in_moduli_product() << 2));
     }
-    mpz_fdiv_q_2exp(qDivBy2, ntru_params::poly_q::moduli_product(), 1);
+    mpz_fdiv_q_2exp(qDivBy2, params::poly_q::moduli_product(), 1);
 
     do {
         /* Prover samples y,y' from Gaussian. */
         for (int i = 0; i < NTRU_WIDTH; i++) {
-            for (size_t k = 0; k < ntru_params::poly_q::degree; k++) {
+            for (size_t k = 0; k < params::poly_q::degree; k++) {
                 int64_t coeff = sample_z(0.0, NTRU_SIGMA_C);
                 mpz_set_si(coeffs[k], coeff);
             }
             y[i].mpz2poly(coeffs);
             y[i].ntt_pow_phi();
-            for (size_t k = 0; k < ntru_params::poly_q::degree; k++) {
+            for (size_t k = 0; k < params::poly_q::degree; k++) {
                 int64_t coeff = sample_z(0.0, NTRU_SIGMA_C);
                 mpz_set_si(coeffs[k], coeff);
             }
@@ -300,16 +300,16 @@ static void lin_prover(ntru_params::poly_q y[NTRU_WIDTH], ntru_params::poly_q _y
         rej1 = rej_sampling(_y, _tmp, NTRU_SIGMA_C * NTRU_SIGMA_C);
     } while (rej0 || rej1);
 
-    for (size_t i = 0; i < ntru_params::poly_q::degree; i++) {
+    for (size_t i = 0; i < params::poly_q::degree; i++) {
         mpz_clear(coeffs[i]);
     }
     mpz_clear(qDivBy2);
 }
 
-static int lin_verifier(ntru_params::poly_q z[NTRU_WIDTH], ntru_params::poly_q _z[NTRU_WIDTH],
-                        ntru_params::poly_q t, ntru_params::poly_q _t, ntru_params::poly_q u,
-                        ntru_commit_t x, ntru_commit_t _x, ntru_params::poly_q alpha[2], ntru_comkey_t &key) {
-    ntru_params::poly_q beta, v, _v, tmp;
+static int lin_verifier(params::poly_q z[NTRU_WIDTH], params::poly_q _z[NTRU_WIDTH],
+                        params::poly_q t, params::poly_q _t, params::poly_q u,
+                        ntru_commit_t x, ntru_commit_t _x, params::poly_q alpha[2], ntru_comkey_t &key) {
+    params::poly_q beta, v, _v, tmp;
     int result = 1;
 
     /* Sample challenge. */
@@ -352,8 +352,8 @@ static int lin_verifier(ntru_params::poly_q z[NTRU_WIDTH], ntru_params::poly_q _
     return result;
 }
 
-void shuffle_hash(ntru_params::poly_q &beta, ntru_commit_t c[MSGS], ntru_commit_t d[MSGS],
-                  ntru_params::poly_q _ms[MSGS], ntru_params::poly_q rho) {
+void shuffle_hash(params::poly_q &beta, ntru_commit_t c[MSGS], ntru_commit_t d[MSGS],
+                  params::poly_q _ms[MSGS], params::poly_q rho) {
     uint8_t hash[BLAKE3_OUT_LEN];
     blake3_hasher hasher;
     blake3_hasher_init(&hasher);
@@ -379,14 +379,14 @@ void shuffle_hash(ntru_params::poly_q &beta, ntru_commit_t c[MSGS], ntru_commit_
     nfl::fastrandombytes_reseed();
 }
 
-static void shuffle_prover(ntru_params::poly_q y[MSGS][NTRU_WIDTH],
-                           ntru_params::poly_q _y[MSGS][NTRU_WIDTH], ntru_params::poly_q t[MSGS],
-                           ntru_params::poly_q _t[MSGS], ntru_params::poly_q u[MSGS], ntru_commit_t d[MSGS],
-                           ntru_params::poly_q s[MSGS], ntru_commit_t c[MSGS], ntru_params::poly_q ms[MSGS],
-                           ntru_params::poly_q _ms[MSGS], vector<ntru_params::poly_q> r[MSGS],
-                           ntru_params::poly_q rho, ntru_comkey_t &key) {
-    ntru_params::poly_q t0;
-    ntru_params::poly_q alpha[2], beta;
+static void shuffle_prover(params::poly_q y[MSGS][NTRU_WIDTH],
+                           params::poly_q _y[MSGS][NTRU_WIDTH], params::poly_q t[MSGS],
+                           params::poly_q _t[MSGS], params::poly_q u[MSGS], ntru_commit_t d[MSGS],
+                           params::poly_q s[MSGS], ntru_commit_t c[MSGS], params::poly_q ms[MSGS],
+                           params::poly_q _ms[MSGS], vector<params::poly_q> r[MSGS],
+                           params::poly_q rho, ntru_comkey_t &key) {
+    params::poly_q t0;
+    params::poly_q alpha[2], beta;
 
     /* Prover samples theta_i and computes commitments D_i. */
     for (size_t i = 0; i < MSGS - 1; i++) {
@@ -427,7 +427,7 @@ static void shuffle_prover(ntru_params::poly_q y[MSGS][NTRU_WIDTH],
             t0 = s[l] * _ms[l];
         } else {
             if (MSGS & 1) {
-                ntru_params::poly_q zero = 0;
+                params::poly_q zero = 0;
                 t0 = zero - beta * _ms[l];
             } else {
                 t0 = beta * _ms[l];
@@ -445,13 +445,13 @@ static void shuffle_prover(ntru_params::poly_q y[MSGS][NTRU_WIDTH],
     }
 }
 
-static int shuffle_verifier(ntru_params::poly_q y[MSGS][NTRU_WIDTH],
-                            ntru_params::poly_q _y[MSGS][NTRU_WIDTH], ntru_params::poly_q t[MSGS],
-                            ntru_params::poly_q _t[MSGS], ntru_params::poly_q u[MSGS], ntru_commit_t d[MSGS],
-                            ntru_params::poly_q s[MSGS], ntru_commit_t c[MSGS], ntru_params::poly_q _ms[MSGS],
-                            ntru_params::poly_q rho, ntru_comkey_t &key) {
-    ntru_params::poly_q alpha[2], beta;
-    vector<ntru_params::poly_q> t0(1);
+static int shuffle_verifier(params::poly_q y[MSGS][NTRU_WIDTH],
+                            params::poly_q _y[MSGS][NTRU_WIDTH], params::poly_q t[MSGS],
+                            params::poly_q _t[MSGS], params::poly_q u[MSGS], ntru_commit_t d[MSGS],
+                            params::poly_q s[MSGS], ntru_commit_t c[MSGS], params::poly_q _ms[MSGS],
+                            params::poly_q rho, ntru_comkey_t &key) {
+    params::poly_q alpha[2], beta;
+    vector<params::poly_q> t0(1);
     int result = 1;
 
     shuffle_hash(beta, c, d, _ms, rho);
@@ -460,7 +460,7 @@ static int shuffle_verifier(ntru_params::poly_q y[MSGS][NTRU_WIDTH],
             t0[0] = s[l] * _ms[l];
         } else {
             if (MSGS & 1) {
-                ntru_params::poly_q zero = 0;
+                params::poly_q zero = 0;
                 t0[0] = zero - beta * _ms[l];
             } else {
                 t0[0] = beta * _ms[l];
@@ -495,11 +495,11 @@ static int shuffle_verifier(ntru_params::poly_q y[MSGS][NTRU_WIDTH],
  * @note This function extends commitments, adjusts keys, and then invokes
  *       the shuffle_prover and shuffle_verifier functions.
  */
-static int run(ntru_commit_t com[MSGS], vector<ntru_params::poly_q> m,
-               vector<ntru_params::poly_q> _m, ntru_comkey_t &key,
-               vector<ntru_params::poly_q> r[MSGS]) {
+static int run(ntru_commit_t com[MSGS], vector<params::poly_q> m,
+               vector<params::poly_q> _m, ntru_comkey_t &key,
+               vector<params::poly_q> r[MSGS]) {
     // Declare local variables for the function
-    ntru_params::poly_q one, t1, rho;
+    params::poly_q one, t1, rho;
     ntru_comkey_t _key;
 
     rho = nfl::uniform();  // Assign random values to rho
@@ -526,11 +526,11 @@ static int run(ntru_commit_t com[MSGS], vector<ntru_params::poly_q> m,
     return shuffle_verifier(y, _y, t, _t, u, d, s, cs, _ms, rho, key);
 }
 
-static void run2(ntru_commit_t com[MSGS], vector<ntru_params::poly_q> m,
-               vector<ntru_params::poly_q> _m, ntru_comkey_t &key,
-               vector<ntru_params::poly_q> r[MSGS]) {
+static void run2(ntru_commit_t com[MSGS], vector<params::poly_q> m,
+               vector<params::poly_q> _m, ntru_comkey_t &key,
+               vector<params::poly_q> r[MSGS]) {
     // Declare local variables for the function
-    ntru_params::poly_q one, t1, rho;
+    params::poly_q one, t1, rho;
     ntru_comkey_t _key;
 
     rho = nfl::uniform();  // Assign random values to rho
@@ -559,7 +559,7 @@ static void run2(ntru_commit_t com[MSGS], vector<ntru_params::poly_q> m,
 
 static void test() {
     ntru_comkey_t key;
-    vector<ntru_params::poly_q> m(MSGS), _m(MSGS);
+    vector<params::poly_q> m(MSGS), _m(MSGS);
 
     /* Generate commitment key-> */
     ntru_bdlop_keygen(key);
@@ -577,7 +577,7 @@ static void test() {
 
     TEST_ONCE("polynomial inverse is correct")
     {
-        ntru_params::poly_q alpha[2] = {nfl::uniform(), nfl::uniform()};
+        params::poly_q alpha[2] = {nfl::uniform(), nfl::uniform()};
 
         poly_inverse(alpha[1], alpha[0]);
         alpha[0].ntt_pow_phi();
@@ -601,7 +601,7 @@ static void test() {
 }
 
 static void microbench() {
-    ntru_params::poly_q alpha[2] = {nfl::uniform(), nfl::uniform()};
+    params::poly_q alpha[2] = {nfl::uniform(), nfl::uniform()};
 
     alpha[0].ntt_pow_phi();
     alpha[1].ntt_pow_phi();
@@ -628,8 +628,8 @@ static void microbench() {
 
 static void bench() {
     ntru_comkey_t key;
-    vector<ntru_params::poly_q> m(MSGS), _m(MSGS);
-    ntru_params::poly_q y[NTRU_WIDTH], _y[NTRU_WIDTH], t, _t, u, alpha[2], beta;
+    vector<params::poly_q> m(MSGS), _m(MSGS);
+    params::poly_q y[NTRU_WIDTH], _y[NTRU_WIDTH], t, _t, u, alpha[2], beta;
 
     /* Generate commitment key-> */
     ntru_bdlop_keygen(key);

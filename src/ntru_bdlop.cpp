@@ -18,9 +18,9 @@ using namespace std;
  */
 // This function tests if the norm of a polynomial `r` is less than a certain bound.
 // The bound is determined by the parameter `sigma_sqr`.
-bool ntru_bdlop_test_norm(ntru_params::poly_q r, double_t sigma_sqr) {
+bool ntru_bdlop_test_norm(params::poly_q r, double_t sigma_sqr) {
     // Declare an array to store the coefficients of the polynomial `r`.
-    array<mpz_t, ntru_params::poly_q::degree> coeffs;
+    array<mpz_t, params::poly_q::degree> coeffs;
 
     // Declare variables to store the norm of the polynomial, half of the moduli product, and a temporary variable.
     mpz_t norm, qDivBy2, tmp;
@@ -29,23 +29,23 @@ bool ntru_bdlop_test_norm(ntru_params::poly_q r, double_t sigma_sqr) {
     mpz_inits(norm, qDivBy2, tmp, nullptr);
 
     // Initialize the coefficients of the polynomial with a size that is four times the bits in the moduli product.
-    for (size_t i = 0; i < ntru_params::poly_q::degree; i++) {
-        mpz_init2(coeffs[i], (ntru_params::poly_q::bits_in_moduli_product() << 2));
+    for (size_t i = 0; i < params::poly_q::degree; i++) {
+        mpz_init2(coeffs[i], (params::poly_q::bits_in_moduli_product() << 2));
     }
 
     // Convert the polynomial `r` to its coefficient representation and store it in `coeffs`.
     r.poly2mpz(coeffs);
 
     // Compute half of the moduli product and store it in `qDivBy2`.
-    mpz_fdiv_q_2exp(qDivBy2, ntru_params::poly_q::moduli_product(), 1);
+    mpz_fdiv_q_2exp(qDivBy2, params::poly_q::moduli_product(), 1);
 
     // Initialize the norm to zero.
     mpz_set_ui(norm, 0);
 
     // For each coefficient of the polynomial:
-    for (size_t i = 0; i < ntru_params::poly_q::degree; i++) {
+    for (size_t i = 0; i < params::poly_q::degree; i++) {
         // Center the coefficient around zero using the moduli product and `qDivBy2`.
-        util::center(coeffs[i], coeffs[i], ntru_params::poly_q::moduli_product(), qDivBy2);
+        util::center(coeffs[i], coeffs[i], params::poly_q::moduli_product(), qDivBy2);
 
         // Compute the square of the coefficient and store it in `tmp`.
         mpz_mul(tmp, coeffs[i], coeffs[i]);
@@ -55,7 +55,7 @@ bool ntru_bdlop_test_norm(ntru_params::poly_q r, double_t sigma_sqr) {
     }
 
     // Compute the bound as (4 * sigma * sqrt(N))^2 = 16 * sigma^2 * N.
-    double_t bound = 16 * sigma_sqr * ntru_params::poly_q::degree;
+    double_t bound = 16 * sigma_sqr * params::poly_q::degree;
 //    std::cout << "\n\n\nBOUND:\n" << bound << "\n";
 //    gmp_printf("\n\nNORM:\n %Zd\n", norm);
     // Compare the computed norm with the bound. If the norm is less than the bound, `result` will be true.
@@ -66,7 +66,7 @@ bool ntru_bdlop_test_norm(ntru_params::poly_q r, double_t sigma_sqr) {
     mpz_clears(norm, qDivBy2, tmp, nullptr);
 
     // Clear the memory used by the coefficients of the polynomial.
-    for (size_t i = 0; i < ntru_params::poly_q::degree; i++) {
+    for (size_t i = 0; i < params::poly_q::degree; i++) {
         mpz_clear(coeffs[i]);
     }
 
@@ -77,7 +77,7 @@ bool ntru_bdlop_test_norm(ntru_params::poly_q r, double_t sigma_sqr) {
 
 // This function samples random polynomials and stores them in the vector `r`.
 // Each polynomial is sampled from a zero distribution and then transformed using NTT
-void ntru_bdlop_sample_rand(vector<ntru_params::poly_q> &r) {
+void ntru_bdlop_sample_rand(vector<params::poly_q> &r) {
     // Iterate over each element of the vector `r`.
     for (size_t i = 0; i < r.size(); i++) {
         // Sample a random polynomial from a zero distribution.
@@ -93,9 +93,9 @@ void ntru_bdlop_sample_rand(vector<ntru_params::poly_q> &r) {
 // This function samples a challenge polynomial `f`.
 // The challenge is constructed by subtracting two polynomials, `c0` and `c1`,
 // each of which is sampled from a Hamming weight distribution with a specified number of non-zero coefficients.
-void ntru_bdlop_sample_chal(ntru_params::poly_q &f) {
+void ntru_bdlop_sample_chal(params::poly_q &f) {
     // Declare two polynomials `c0` and `c1`.
-    ntru_params::poly_q c0, c1;
+    params::poly_q c0, c1;
 
     // Sample polynomial `c0` from a Hamming weight distribution.
     // The `nfl::hwt_dist {NONZERO}` likely samples a polynomial with a fixed number of non-zero coefficients,
@@ -117,7 +117,7 @@ void ntru_bdlop_sample_chal(ntru_params::poly_q &f) {
 // This function generates a key pair and stores it in the `key` structure.
 void ntru_bdlop_keygen(ntru_comkey_t &key) {
     // Initialize a polynomial `one` with the value 1.
-    ntru_params::poly_q one = 1;
+    params::poly_q one = 1;
 
     // Transform the polynomial `one` into the NTT (Number Theoretic Transform) domain.
     // The `ntt_pow_phi()` function computes the polynomial in the NTT domain.
@@ -150,10 +150,10 @@ void ntru_bdlop_keygen(ntru_comkey_t &key) {
 }
 
 // This function computes a commitment `com` to a message `m` using a commitment key `key` and randomness `r`.
-void ntru_bdlop_commit(ntru_commit_t &com, ntru_params::poly_q &m, ntru_comkey_t &key,
-                       vector<ntru_params::poly_q> r) {
+void ntru_bdlop_commit(ntru_commit_t &com, params::poly_q &m, ntru_comkey_t &key,
+                       vector<params::poly_q> r) {
     // Declare a temporary polynomial `_m`.
-    ntru_params::poly_q _m;
+    params::poly_q _m;
 
     // Initialize the first component of the commitment `com.c1` with the first element of the randomness vector `r`.
     com.c1 = r[0];
@@ -187,10 +187,10 @@ void ntru_bdlop_commit(ntru_commit_t &com, ntru_params::poly_q &m, ntru_comkey_t
 
 // This function attempts to open a commitment on a message `m` using the provided randomness `r`, commitment key `key`, and factor `f`.
 // It returns an integer indicating the success (true) or failure (false) of the opening process.
-int ntru_bdlop_open(ntru_commit_t &com, ntru_params::poly_q m, ntru_comkey_t &key,
-                    vector<ntru_params::poly_q> r, ntru_params::poly_q &f) {
+int ntru_bdlop_open(ntru_commit_t &com, params::poly_q m, ntru_comkey_t &key,
+                    vector<params::poly_q> r, params::poly_q &f) {
     // Declare temporary polynomials for computations.
-    ntru_params::poly_q c1, _c1, c2, _c2, _m;
+    params::poly_q c1, _c1, c2, _c2, _m;
     int result = true;
 
     // Compute the first component of the commitment using the matrix `A1` from the commitment key and a subset of the randomness vector `r`.
@@ -253,9 +253,9 @@ static void test1() {
     ntru_bdlop_keygen(key);
 
     // Define randomness and message vectors.
-    vector<ntru_params::poly_q> r(WIDTH), s(WIDTH);
-    ntru_params::poly_q f;
-    ntru_params::poly_q m = nfl::uniform();  // Single message.
+    vector<params::poly_q> r(WIDTH), s(WIDTH);
+    params::poly_q f;
+    params::poly_q m = nfl::uniform();  // Single message.
 
     TEST_BEGIN("commitment for single messages can be generated and opened") {
         // Sample random values.
@@ -286,7 +286,7 @@ static void test1() {
 
     TEST_BEGIN("commitments for single messages are linearly homomorphic") {
         // Test linearity.
-        ntru_params::poly_q rho = nfl::uniform();
+        params::poly_q rho = nfl::uniform();
         for (size_t j = 0; j < r.size(); j++) {
             r[j] = 0;
         }
@@ -313,12 +313,12 @@ static void test2() {
     ntru_bdlop_keygen(key);
 
     // Define randomness vectors and factors.
-    vector<ntru_params::poly_q> r(WIDTH), s(WIDTH);
-    ntru_params::poly_q f, one;
-//    ntru_params::poly_q t;
+    vector<params::poly_q> r(WIDTH), s(WIDTH);
+    params::poly_q f, one;
+//    params::poly_q t;
 
     // Define messages.
-    ntru_params::poly_q m = nfl::uniform();
+    params::poly_q m = nfl::uniform();
 
     TEST_BEGIN("commitment for multiple messages can be generated and opened") {
         // Sample random values.
@@ -379,12 +379,12 @@ static void test2() {
 static void bench() {
     ntru_comkey_t key;  // Commitment key.
     ntru_commit_t com;  // Commitment.
-    ntru_params::poly_q f;  // Factor.
-    vector<ntru_params::poly_q> r(WIDTH), s(WIDTH);  // Randomness vectors.
-    ntru_params::poly_q m;  // Messages.
-    ntru_params::poly_p _m;  // Message in another domain.
+    params::poly_q f;  // Factor.
+    vector<params::poly_q> r(WIDTH), s(WIDTH);  // Randomness vectors.
+    params::poly_q m;  // Messages.
+    params::poly_p _m;  // Message in another domain.
 
-    ntru_params::poly_q pk, sk, c;  // Public key and secret key and cipher text for NTRU encryption.
+    params::poly_q pk, sk, c;  // Public key and secret key and cipher text for NTRU encryption.
 
     // Benchmark key generation.
     BENCH_SMALL("bdlp_keygen", ntru_bdlop_keygen(key));
