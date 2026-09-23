@@ -70,16 +70,21 @@ $(OBJ)/%.o: src/%.cpp $(STAMP) | $(OBJ)
 $(BLAKE3): $(BLAKE3_SRC) | $(OBJ)
 	$(CPP) $(CFLAGS) -r -nostdlib $(BLAKE3_SRC) -o $@
 
-# ntru_pismall proves a relation over SIZE = 3 committed messages and links the
-# plain BDLOP commitment, while ntru_shuffle links the NTRU one at the default
-# SIZE. The two must not share an object file, or whichever target is built
+# ntru_pismall proves a relation over SIZE = 3 committed messages, while
+# ntru_shuffle commits to one at a time at the default SIZE = 1. That is the
+# only difference between the two, so both come from src/ntru_bdlop.cpp, built twice.
+# The two builds must not share an object file, or whichever target is built
 # last silently links the wrong one -- which is what the previous Makefile did,
-# compiling both into ntru_bdlop.o.
-$(OBJ)/bdlop-size3.o: src/bdlop.cpp $(STAMP) | $(OBJ)
+# compiling a separate scalar-message copy of it into the same object.
+$(OBJ)/bdlop-size3.o: src/ntru_bdlop.cpp $(STAMP) | $(OBJ)
 	$(CPP) $(CFLAGS) -DSIZE=3 -c $< -o $@
 
+# The commitment scheme's own tests and benchmarks. Built at SIZE = 2 because
+# its second test commits to two messages and folds one into the other, which
+# is what a single-message build cannot exercise; the library objects above are
+# built at the SIZE their own binary needs.
 ntru_bdlop: src/ntru_bdlop.cpp $(COMMON) $(STAMP)
-	$(CPP) $(CFLAGS) -DMAIN src/ntru_bdlop.cpp $(COMMON) -o $@ $(LIBS)
+	$(CPP) $(CFLAGS) -DSIZE=2 -DMAIN src/ntru_bdlop.cpp $(COMMON) -o $@ $(LIBS)
 
 ntru: src/ntru.cpp $(OBJ)/sample_z_small.o $(COMMON) $(BLAKE3) $(STAMP)
 	$(CPP) $(CFLAGS) -DMAIN src/ntru.cpp $(OBJ)/sample_z_small.o \
@@ -96,7 +101,7 @@ ntru_shuffle: src/ntru_shuffle.cpp $(OBJ)/ntru_bdlop.o \
 		$(OBJ)/sample_z_small.o $(COMMON) $(BLAKE3) -o $@ $(LIBS) $(FLINT)
 
 clean:
-	rm -rf $(OBJ) $(BIN)
+	rm -rf $(OBJ) $(BIN) *.d
 
 # The object rules drop their dependency files in $(OBJ); the rules that compile
 # and link a binary from its source in one step drop theirs next to the binary,

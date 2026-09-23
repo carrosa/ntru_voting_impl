@@ -28,16 +28,16 @@
  * take them as arguments keep their signatures, since an array parameter is a
  * pointer either way. inv_tmp is simul_inverse's scratch space and _r, theta
  * and inv are the prover's, all equally oversized. */
-static ntru_commit_t *com, *d, *cs;
+static commit_t *com, *d, *cs;
 static vector<params::poly_q> *r, *_r;
 static params::poly_q *ms, *_ms, *s, *theta, *inv, *inv_tmp;
 static params::poly_q (*y)[NTRU_WIDTH], (*_y)[NTRU_WIDTH];
 static params::poly_q *t, *_t, *u;
 
 static void shuffle_alloc(void) {
-    com = new ntru_commit_t[MSGS];
-    d = new ntru_commit_t[MSGS];
-    cs = new ntru_commit_t[MSGS];
+    com = new commit_t[MSGS];
+    d = new commit_t[MSGS];
+    cs = new commit_t[MSGS];
     r = new vector<params::poly_q>[MSGS];
     _r = new vector<params::poly_q>[MSGS];
     ms = new params::poly_q[MSGS];
@@ -73,8 +73,8 @@ static void shuffle_free(void) {
 }
 
 
-static void lin_hash(params::poly_q &beta, ntru_comkey_t &key, ntru_commit_t x,
-                     ntru_commit_t y, params::poly_q alpha[2], params::poly_q &u,
+static void lin_hash(params::poly_q &beta, comkey_t &key, commit_t x,
+                     commit_t y, params::poly_q alpha[2], params::poly_q &u,
                      params::poly_q t, params::poly_q _t) {
     uint8_t hash[BLAKE3_OUT_LEN];
     blake3_hasher hasher;
@@ -89,7 +89,7 @@ static void lin_hash(params::poly_q &beta, ntru_comkey_t &key, ntru_commit_t x,
         }
     }
     for (size_t j = 0; j < NTRU_WIDTH; j++) {
-        blake3_hasher_update(&hasher, (const uint8_t *) key.A2[j].data(),
+        blake3_hasher_update(&hasher, (const uint8_t *) key.A2[0][j].data(),
                              8 * NTRU_DEGREE);
     }
 
@@ -101,9 +101,9 @@ static void lin_hash(params::poly_q &beta, ntru_comkey_t &key, ntru_commit_t x,
 
     blake3_hasher_update(&hasher, (const uint8_t *) x.c1.data(), 8 * NTRU_DEGREE);
     blake3_hasher_update(&hasher, (const uint8_t *) y.c1.data(), 8 * NTRU_DEGREE);
-    blake3_hasher_update(&hasher, (const uint8_t *) x.c2.data(),
+    blake3_hasher_update(&hasher, (const uint8_t *) x.c2[0].data(),
                          8 * NTRU_DEGREE);
-    blake3_hasher_update(&hasher, (const uint8_t *) y.c2.data(),
+    blake3_hasher_update(&hasher, (const uint8_t *) y.c2[0].data(),
                          8 * NTRU_DEGREE);
 
     blake3_hasher_update(&hasher, (const uint8_t *) u.data(), 8 * NTRU_DEGREE);
@@ -114,7 +114,7 @@ static void lin_hash(params::poly_q &beta, ntru_comkey_t &key, ntru_commit_t x,
 
     /* Sample challenge from RNG seeded with hash. */
     nfl::fastrandombytes_seed(hash);
-    ntru_bdlop_sample_chal(beta);
+    bdlop_sample_chal(beta);
     nfl::fastrandombytes_reseed();
 }
 
@@ -241,8 +241,8 @@ static int rej_sampling(params::poly_q z[NTRU_WIDTH], params::poly_q v[NTRU_WIDT
 
 static void lin_prover(params::poly_q y[NTRU_WIDTH], params::poly_q _y[NTRU_WIDTH],
                        params::poly_q &t, params::poly_q &_t, params::poly_q &u,
-                       ntru_commit_t x, ntru_commit_t _x, params::poly_q alpha[2],
-                       ntru_comkey_t &key, vector<params::poly_q> r,
+                       commit_t x, commit_t _x, params::poly_q alpha[2],
+                       comkey_t &key, vector<params::poly_q> r,
                        vector<params::poly_q> _r) {
     params::poly_q beta, tmp[NTRU_WIDTH], _tmp[NTRU_WIDTH];
     array<mpz_t, params::poly_q::degree> coeffs;
@@ -283,7 +283,7 @@ static void lin_prover(params::poly_q y[NTRU_WIDTH], params::poly_q _y[NTRU_WIDT
 
         u = 0;
         for (int i = 0; i < NTRU_WIDTH; i++) {
-            u = u + alpha[0] * (key.A2[i] * y[i]) - (key.A2[i] * _y[i]);
+            u = u + alpha[0] * (key.A2[0][i] * y[i]) - (key.A2[0][i] * _y[i]);
         }
 
         /* Sample challenge. */
@@ -308,7 +308,7 @@ static void lin_prover(params::poly_q y[NTRU_WIDTH], params::poly_q _y[NTRU_WIDT
 
 static int lin_verifier(params::poly_q z[NTRU_WIDTH], params::poly_q _z[NTRU_WIDTH],
                         params::poly_q t, params::poly_q _t, params::poly_q u,
-                        ntru_commit_t x, ntru_commit_t _x, params::poly_q alpha[2], ntru_comkey_t &key) {
+                        commit_t x, commit_t _x, params::poly_q alpha[2], comkey_t &key) {
     params::poly_q beta, v, _v, tmp;
     int result = 1;
 
@@ -319,10 +319,10 @@ static int lin_verifier(params::poly_q z[NTRU_WIDTH], params::poly_q _z[NTRU_WID
     for (int i = 0; i < NTRU_WIDTH; i++) {
         v = z[i];
         v.invntt_pow_invphi();
-        result &= ntru_bdlop_test_norm(v, NTRU_SIGMA_C * NTRU_SIGMA_C);
+        result &= bdlop_test_norm(v, NTRU_SIGMA_C * NTRU_SIGMA_C);
         v = _z[i];
         v.invntt_pow_invphi();
-        result &= ntru_bdlop_test_norm(v, NTRU_SIGMA_C * NTRU_SIGMA_C);
+        result &= bdlop_test_norm(v, NTRU_SIGMA_C * NTRU_SIGMA_C);
     }
 
     /* Verifier computes A1z and A1z'. */
@@ -344,15 +344,15 @@ static int lin_verifier(params::poly_q z[NTRU_WIDTH], params::poly_q _z[NTRU_WID
 
     v = 0;
     for (int i = 0; i < NTRU_WIDTH; i++) {
-        v = v + alpha[0] * (key.A2[i] * z[i]) - (key.A2[i] * _z[i]);
+        v = v + alpha[0] * (key.A2[0][i] * z[i]) - (key.A2[0][i] * _z[i]);
     }
-    t = (alpha[0] * x.c2 + alpha[1] - _x.c2) * beta + u;
+    t = (alpha[0] * x.c2[0] + alpha[1] - _x.c2[0]) * beta + u;
 
     result &= util::equal(t, v);
     return result;
 }
 
-void shuffle_hash(params::poly_q &beta, ntru_commit_t c[MSGS], ntru_commit_t d[MSGS],
+void shuffle_hash(params::poly_q &beta, commit_t c[MSGS], commit_t d[MSGS],
                   params::poly_q _ms[MSGS], params::poly_q rho) {
     uint8_t hash[BLAKE3_OUT_LEN];
     blake3_hasher hasher;
@@ -363,9 +363,9 @@ void shuffle_hash(params::poly_q &beta, ntru_commit_t c[MSGS], ntru_commit_t d[M
     for (int i = 0; i < MSGS; i++) {
         blake3_hasher_update(&hasher, (const uint8_t *) _ms[i].data(),
                              8 * NTRU_DEGREE);
-        blake3_hasher_update(&hasher, (const uint8_t *) c[i].c2.data(),
+        blake3_hasher_update(&hasher, (const uint8_t *) c[i].c2[0].data(),
                              8 * NTRU_DEGREE);
-        blake3_hasher_update(&hasher, (const uint8_t *) d[i].c2.data(),
+        blake3_hasher_update(&hasher, (const uint8_t *) d[i].c2[0].data(),
                              8 * NTRU_DEGREE);
     }
 
@@ -381,10 +381,10 @@ void shuffle_hash(params::poly_q &beta, ntru_commit_t c[MSGS], ntru_commit_t d[M
 
 static void shuffle_prover(params::poly_q y[MSGS][NTRU_WIDTH],
                            params::poly_q _y[MSGS][NTRU_WIDTH], params::poly_q t[MSGS],
-                           params::poly_q _t[MSGS], params::poly_q u[MSGS], ntru_commit_t d[MSGS],
-                           params::poly_q s[MSGS], ntru_commit_t c[MSGS], params::poly_q ms[MSGS],
+                           params::poly_q _t[MSGS], params::poly_q u[MSGS], commit_t d[MSGS],
+                           params::poly_q s[MSGS], commit_t c[MSGS], params::poly_q ms[MSGS],
                            params::poly_q _ms[MSGS], vector<params::poly_q> r[MSGS],
-                           params::poly_q rho, ntru_comkey_t &key) {
+                           params::poly_q rho, comkey_t &key) {
     params::poly_q t0;
     params::poly_q alpha[2], beta;
 
@@ -399,14 +399,14 @@ static void shuffle_prover(params::poly_q y[MSGS][NTRU_WIDTH],
         }
         t0.invntt_pow_invphi();
         _r[i].resize(NTRU_WIDTH);
-        ntru_bdlop_sample_rand(_r[i]);
-        ntru_bdlop_commit(d[i], t0, key, _r[i]);
+        bdlop_sample_rand(_r[i]);
+        bdlop_commit(d[i], {t0}, key, _r[i]);
     }
     t0 = theta[MSGS - 2] * ms[MSGS - 1];
     t0.invntt_pow_invphi();
     _r[MSGS - 1].resize(NTRU_WIDTH);
-    ntru_bdlop_sample_rand(_r[MSGS - 1]);
-    ntru_bdlop_commit(d[MSGS - 1], t0, key, _r[MSGS - 1]);
+    bdlop_sample_rand(_r[MSGS - 1]);
+    bdlop_commit(d[MSGS - 1], {t0}, key, _r[MSGS - 1]);
 
     shuffle_hash(beta, c, d, _ms, rho);
 
@@ -447,9 +447,9 @@ static void shuffle_prover(params::poly_q y[MSGS][NTRU_WIDTH],
 
 static int shuffle_verifier(params::poly_q y[MSGS][NTRU_WIDTH],
                             params::poly_q _y[MSGS][NTRU_WIDTH], params::poly_q t[MSGS],
-                            params::poly_q _t[MSGS], params::poly_q u[MSGS], ntru_commit_t d[MSGS],
-                            params::poly_q s[MSGS], ntru_commit_t c[MSGS], params::poly_q _ms[MSGS],
-                            params::poly_q rho, ntru_comkey_t &key) {
+                            params::poly_q _t[MSGS], params::poly_q u[MSGS], commit_t d[MSGS],
+                            params::poly_q s[MSGS], commit_t c[MSGS], params::poly_q _ms[MSGS],
+                            params::poly_q rho, comkey_t &key) {
     params::poly_q alpha[2], beta;
     vector<params::poly_q> t0(1);
     int result = 1;
@@ -495,12 +495,12 @@ static int shuffle_verifier(params::poly_q y[MSGS][NTRU_WIDTH],
  * @note This function extends commitments, adjusts keys, and then invokes
  *       the shuffle_prover and shuffle_verifier functions.
  */
-static int run(ntru_commit_t com[MSGS], vector<params::poly_q> m,
-               vector<params::poly_q> _m, ntru_comkey_t &key,
+static int run(commit_t com[MSGS], vector<params::poly_q> m,
+               vector<params::poly_q> _m, comkey_t &key,
                vector<params::poly_q> r[MSGS]) {
     // Declare local variables for the function
     params::poly_q one, t1, rho;
-    ntru_comkey_t _key;
+    comkey_t _key;
 
     rho = nfl::uniform();  // Assign random values to rho
     for (size_t i = 0; i < MSGS; i++) {
@@ -511,7 +511,8 @@ static int run(ntru_commit_t com[MSGS], vector<params::poly_q> m,
         _ms[i].ntt_pow_phi();  // Convert _ms[i] to NTT domain
         _ms[i] = _ms[i] - rho;
         cs[i].c1 = com[i].c1;
-        cs[i].c2 = com[i].c2 - rho;
+        cs[i].c2 = com[i].c2;
+        cs[i].c2[0] = cs[i].c2[0] - rho;
         t1 = m[i];
         t1.ntt_pow_phi();  // Convert t1 to NTT domain
         t1 = _m[i];
@@ -526,12 +527,12 @@ static int run(ntru_commit_t com[MSGS], vector<params::poly_q> m,
     return shuffle_verifier(y, _y, t, _t, u, d, s, cs, _ms, rho, key);
 }
 
-static void run2(ntru_commit_t com[MSGS], vector<params::poly_q> m,
-               vector<params::poly_q> _m, ntru_comkey_t &key,
+static void run2(commit_t com[MSGS], vector<params::poly_q> m,
+               vector<params::poly_q> _m, comkey_t &key,
                vector<params::poly_q> r[MSGS]) {
     // Declare local variables for the function
     params::poly_q one, t1, rho;
-    ntru_comkey_t _key;
+    comkey_t _key;
 
     rho = nfl::uniform();  // Assign random values to rho
     for (size_t i = 0; i < MSGS; i++) {
@@ -542,7 +543,8 @@ static void run2(ntru_commit_t com[MSGS], vector<params::poly_q> m,
         _ms[i].ntt_pow_phi();  // Convert _ms[i] to NTT domain
         _ms[i] = _ms[i] - rho;
         cs[i].c1 = com[i].c1;
-        cs[i].c2 = com[i].c2 - rho;
+        cs[i].c2 = com[i].c2;
+        cs[i].c2[0] = cs[i].c2[0] - rho;
         t1 = m[i];
         t1.ntt_pow_phi();  // Convert t1 to NTT domain
         t1 = _m[i];
@@ -558,16 +560,16 @@ static void run2(ntru_commit_t com[MSGS], vector<params::poly_q> m,
 #ifdef MAIN
 
 static void test() {
-    ntru_comkey_t key;
+    comkey_t key;
     vector<params::poly_q> m(MSGS), _m(MSGS);
 
     /* Generate commitment key-> */
-    ntru_bdlop_keygen(key);
+    bdlop_keygen(key);
     for (int i = 0; i < MSGS; i++) {
         m[i] = nfl::ZO_dist();
         r[i].resize(NTRU_WIDTH);
-        ntru_bdlop_sample_rand(r[i]);
-        ntru_bdlop_commit(com[i], m[i], key, r[i]);
+        bdlop_sample_rand(r[i]);
+        bdlop_commit(com[i], {m[i]}, key, r[i]);
     }
 
     /* Prover shuffles messages (only a circular shift for simplicity). */
@@ -627,17 +629,17 @@ static void microbench() {
 }
 
 static void bench() {
-    ntru_comkey_t key;
+    comkey_t key;
     vector<params::poly_q> m(MSGS), _m(MSGS);
     params::poly_q y[NTRU_WIDTH], _y[NTRU_WIDTH], t, _t, u, alpha[2], beta;
 
     /* Generate commitment key-> */
-    ntru_bdlop_keygen(key);
+    bdlop_keygen(key);
     for (int i = 0; i < MSGS; i++) {
         m[i] = nfl::ZO_dist();
         r[i].resize(NTRU_WIDTH);
-        ntru_bdlop_sample_rand(r[i]);
-        ntru_bdlop_commit(com[i], m[i], key, r[i]);
+        bdlop_sample_rand(r[i]);
+        bdlop_commit(com[i], {m[i]}, key, r[i]);
     }
 
     /* Prover shuffles messages (only a circular shift for simplicity). */
@@ -649,7 +651,7 @@ static void bench() {
     alpha[1] = nfl::ZO_dist();
     alpha[0].ntt_pow_phi();
     alpha[1].ntt_pow_phi();
-    ntru_bdlop_sample_chal(beta);
+    bdlop_sample_chal(beta);
     BENCH_BEGIN("linear hash")
         {
             BENCH_ADD(lin_hash(beta, key, com[0], com[1], alpha, u, t, _t));
