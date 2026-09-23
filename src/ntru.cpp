@@ -80,10 +80,14 @@ void ntru_keygen(params::poly_q &pk, params::poly_q &sk) {
 
     do {
         for (size_t k = 0; k < params::poly_q::degree; k++) {
-            int64_t coeff_f;
+            int64_t coeff_f, residue;
+            /* f = 1 mod p asks for the least non-negative residue. C's % keeps
+             * the sign of the dividend, so testing it directly rejected every
+             * negative odd coefficient and left f[0] on the positive half. */
             do {
                 coeff_f = sample_z(0.0, NTRU_SIGMA);
-            } while ((k == 0 && coeff_f % NTRU_PRIMEP != 1) || (k >= 1 && coeff_f % NTRU_PRIMEP != 0));
+                residue = ((coeff_f % NTRU_PRIMEP) + NTRU_PRIMEP) % NTRU_PRIMEP;
+            } while (residue != (k == 0 ? 1 : 0));
             int64_t coeff_g = sample_z(0.0, NTRU_SIGMA);
             mpz_set_si(coeffs_f[k], coeff_f);
             mpz_set_si(coeffs_g[k], coeff_g);
