@@ -2,6 +2,7 @@
 # Edit at https://www.toptal.com/developers/gitignore?templates=intellij+all,c,c++,cmake
 
 # Executables
+obj/
 bdlop
 bgv
 shuffle

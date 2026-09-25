@@ -22,9 +22,11 @@
 /*============================================================================*/
 
 /**
- * Number of times a test is executed.
+ * Number of times a test is executed. Overridable, like BENCH.
  */
+#ifndef TESTS
 #define TESTS 		100
+#endif
 
 /**
  * Runs a new benchmark once.

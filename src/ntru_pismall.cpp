@@ -1,8 +1,7 @@
 #include <math.h>
 #include <stdlib.h>
 
-#include <flint/flint.h>
-#include <flint/fmpz_mod_poly.h>
+#include "flint_util.h"
 
 #include "assert.h"
 #include "bench.h"
@@ -13,11 +12,38 @@
 #define ETA 325
 #define R (HEIGHT + 1) // HEIGHT + 1
 #define V (WIDTH+1) // WIDTH + 1
+/* Number of relations the proof is amortized over. Overridable, so that the
+ * proof can be run on a machine without tens of gigabytes of RAM. */
+#ifndef TAU
 #define TAU 1000
+#endif
 
-/* Had to move those to global to avoid overflowing the stack. */
-params::poly_q A[R][V], s[TAU][V], t[TAU][R];
-params::poly_big H0[V], _H[V], H[TAU][3];
+/* A params::poly_q is 16 KiB and a params::poly_big four times that, so the
+ * matrices dimensioned by TAU are hundreds of megabytes at the published
+ * parameters -- far too large for the stack, and large enough that reserving
+ * them for the whole run is worth avoiding. They are allocated on the heap by
+ * pismall_alloc() and the pointers index exactly like the arrays they
+ * replace. */
+params::poly_q (*A)[V], (*s)[V], (*t)[R];
+params::poly_big *H0, *_H, (*H)[3];
+
+static void pismall_alloc(void) {
+    A = new params::poly_q[R][V];
+    s = new params::poly_q[TAU][V];
+    t = new params::poly_q[TAU][R];
+    H0 = new params::poly_big[V];
+    _H = new params::poly_big[V];
+    H = new params::poly_big[TAU][3];
+}
+
+static void pismall_free(void) {
+    delete[] A;
+    delete[] s;
+    delete[] t;
+    delete[] H0;
+    delete[] _H;
+    delete[] H;
+}
 
 /*
  * @param[in] x         Integer of type fmpz_t from FLINT
@@ -26,6 +52,9 @@ params::poly_big H0[V], _H[V], H[TAU][3];
  * @param[in] q         Integer of type fmpz_t from FLINT
  * @param[in] com       Reference to a commit of type commit_t
  * */
+#define POLY_BYTES (params::poly_q::nmoduli * params::poly_q::degree * \
+                    sizeof(params::poly_q::value_type))
+
 static void pismall_hash(fmpz_t x, fmpz_t beta0, fmpz_t beta[TAU][3], fmpz_t q,
                          commit_t &com) {
     // Declare an array named hash of uint8_t (unsigned 8-bit integer) with length
@@ -42,7 +71,7 @@ static void pismall_hash(fmpz_t x, fmpz_t beta0, fmpz_t beta[TAU][3], fmpz_t q,
 
     // Initialize the rand variable using the flint_randinit function from the
     // FLINT library
-    flint_randinit(rand);
+    flint_rand_init(rand);
 
     // Initialize the hasher variable using the blake3_hasher_init function from
     // the BLAKE3 library
@@ -50,13 +79,12 @@ static void pismall_hash(fmpz_t x, fmpz_t beta0, fmpz_t beta[TAU][3], fmpz_t q,
     // Update the hasher with data from com.c1 using the blake3_hasher_update
     // function. The data is treated as an array of uint8_t and has a size of 16 *
     // NTRU_DEGREE
-    blake3_hasher_update(&hasher, (const uint8_t *) com.c1.data(),
-                         16 * NTRU_DEGREE);
+    blake3_hasher_update(&hasher, (const uint8_t *) com.c1.data(), POLY_BYTES);
     // Iterate over the size of com.c2 and update the hasher with data from each
     // element of com.c2
     for (size_t i = 0; i < com.c2.size(); i++) {
         blake3_hasher_update(&hasher, (const uint8_t *) com.c2[i].data(),
-                             16 * NTRU_DEGREE);
+                             POLY_BYTES);
     }
 
     // Finalize the hashing process and store the result in the hash array
@@ -67,7 +95,7 @@ static void pismall_hash(fmpz_t x, fmpz_t beta0, fmpz_t beta[TAU][3], fmpz_t q,
     // Copy the next sizeof(ulong) bytes from the middle of hash to seed[1]
     memcpy(&seed[1], hash + BLAKE3_OUT_LEN / 2, sizeof(ulong));
     // Seed the random number generator rand with seed[0] and seed[1]
-    flint_randseed(rand, seed[0], seed[1]);
+    flint_rand_set_seed(rand, seed[0], seed[1]);
     // Generate a random number modulo q and store it in x
     fmpz_randm(x, rand, q);
     // Generate another random number modulo q and store it in beta0
@@ -89,7 +117,7 @@ static void poly_to(params::poly_q &out, fmpz_mod_poly_t &in,
     }
 
     for (size_t i = 0; i < params::poly_q::degree; i++) {
-        fmpz_mod_poly_get_coeff_mpz(coeffs[i], in, i, ctx);
+        flint_poly_get_coeff_mpz(coeffs[i], in, i, ctx);
     }
 
     out.mpz2poly(coeffs);
@@ -111,10 +139,10 @@ static void poly_encode(params::poly_big &out, fmpz_mod_poly_t in0,
     }
 
     for (i = 0; i < params::poly_q::degree; i++) {
-        fmpz_mod_poly_get_coeff_mpz(coeffs[i], in0, i, ctx);
+        flint_poly_get_coeff_mpz(coeffs[i], in0, i, ctx);
     }
     for (; i < 2 * params::poly_q::degree; i++) {
-        fmpz_mod_poly_get_coeff_mpz(coeffs[i], in1, i, ctx);
+        flint_poly_get_coeff_mpz(coeffs[i], in1, i, ctx);
     }
     for (; i < 2 * params::poly_q::degree + ETA; i++) {
         fmpz_get_mpz(coeffs[i], in[i - 2 * params::poly_q::degree]);
@@ -143,7 +171,7 @@ static void poly_from(fmpz_mod_poly_t &out, params::poly_q &in,
     fmpz_mod_poly_zero(out, ctx);
     fmpz_mod_poly_fit_length(out, params::poly_q::degree, ctx);
     for (size_t i = 0; i < params::poly_q::degree; i++) {
-        fmpz_mod_poly_set_coeff_mpz(out, i, coeffs[i], ctx);
+        flint_poly_set_coeff_mpz(out, i, coeffs[i], ctx);
     }
 
     in.ntt_pow_phi();
@@ -221,9 +249,15 @@ static int pismall_prover(commit_t &com, fmpz_t x, fmpz_mod_poly_t f[V],
                           fmpz_t rh[ETA], vector<params::poly_q> rd,
                           comkey_t &key, fmpz_mod_poly_t lag[TAU + 1],
                           flint_rand_t prng, const fmpz_mod_ctx_t ctx) {
-    array<mpz_t, params::poly_q::degree> coeffs, coeffs0, v[3][TAU][V];
+    array<mpz_t, params::poly_q::degree> coeffs, coeffs0;
     fmpz_mod_poly_t poly, zero;
-    fmpz_t t, u, q, y[TAU], beta0, beta[TAU][3], r0[ETA], r[TAU][3][ETA];
+    fmpz_t t, u, q, beta0, r0[ETA];
+    /* Dimensioned by TAU, so on the heap: as locals these alone gave the
+     * prover a 499 MB stack frame at TAU = 1000. */
+    auto v = new array<mpz_t, params::poly_q::degree>[3][TAU][V];
+    auto y = new fmpz_t[TAU];
+    auto beta = new fmpz_t[TAU][3];
+    auto r = new fmpz_t[TAU][3][ETA];
     fmpz_mod_ctx_t ctx_q;
     vector<params::poly_q> d;
     params::poly_q s0[V];
@@ -372,7 +406,7 @@ static int pismall_prover(commit_t &com, fmpz_t x, fmpz_mod_poly_t f[V],
         for (size_t i = 0; i < TAU; i++) {
             for (size_t j = 0; j < 3; j++) {
                 for (size_t l = 0; l < params::poly_q::degree; l++) {
-                    fmpz_mod_poly_set_coeff_mpz(poly, l, v[j][i][k][l], ctx_q);
+                    flint_poly_set_coeff_mpz(poly, l, v[j][i][k][l], ctx_q);
                 }
                 if (j == 0) {
                     poly_from(zero, s[i][j], ctx_q);
@@ -429,12 +463,12 @@ static int pismall_prover(commit_t &com, fmpz_t x, fmpz_mod_poly_t f[V],
         for (size_t i = 1; i <= TAU; i++) {
             for (size_t j = 0; j < 3; j++) {
                 if (j == 0) {
-                    poly_from(poly, s[i][k], ctx_q);
+                    poly_from(poly, s[i - 1][k], ctx_q);
                     fmpz_mod_poly_scalar_mul_fmpz(poly, poly, beta[i - 1][j], ctx_q);
                     fmpz_mod_poly_add(h[0][k], h[0][k], poly, ctx);
                 }
                 for (size_t l = 0; l < params::poly_q::degree; l++) {
-                    fmpz_mod_poly_set_coeff_mpz(poly, l, v[j][i - 1][k][l], ctx_q);
+                    flint_poly_set_coeff_mpz(poly, l, v[j][i - 1][k][l], ctx_q);
                 }
                 fmpz_mod_poly_scalar_mul_fmpz(poly, poly, beta[i - 1][j], ctx_q);
                 fmpz_mod_poly_add(h[1][k], h[1][k], poly, ctx);
@@ -473,6 +507,10 @@ static int pismall_prover(commit_t &com, fmpz_t x, fmpz_mod_poly_t f[V],
     for (size_t i = 0; i < ETA; i++) {
         fmpz_clear(r0[i]);
     }
+    delete[] v;
+    delete[] y;
+    delete[] beta;
+    delete[] r;
     return 1;
 }
 
@@ -542,8 +580,7 @@ static int pismall_verifier(commit_t &com, fmpz_mod_poly_t f[V], fmpz_t rf[ETA],
     }
     one = 1;
     one.ntt_pow_phi();
-//    int result = bdlop_open(com, m, key, rd, one);
-    int result = 1;
+    int result = bdlop_open(com, m, key, rd, one);
     fmpz_clear(q);
     fmpz_clear(x);
     fmpz_clear(y);
@@ -625,7 +662,7 @@ static void test(flint_rand_t rand) {
             for (int j = 0; j < V; j++) {
                 poly_from(f[j], A[i][j], ctx);
                 poly_to(rd[0], f[j], ctx);
-                TEST_ASSERT(rd[0] == A[i][j], end);
+                TEST_ASSERT(util::equal(rd[0], A[i][j]), end);
             }
         }
         fmpz_mod_poly_zero(poly, ctx_q);
@@ -638,7 +675,7 @@ static void test(flint_rand_t rand) {
                 poly_from(f[j], A[i][j], ctx_q);
                 fmpz_mod_poly_mulmod(f[j], f[j], f[j], poly, ctx_q);
                 poly_to(rd[1], f[j], ctx_q);
-                TEST_ASSERT(rd[0] == rd[1], end);
+                TEST_ASSERT(util::equal(rd[0], rd[1]), end);
             }
         }
     }
@@ -688,9 +725,11 @@ static void test(flint_rand_t rand) {
 
 int main() {
     flint_rand_t rand;
-    flint_randinit(rand);
+    flint_rand_init(rand);
 
+    pismall_alloc();
     printf("\n** Tests for lattice-based AEX proof:\n\n");
     test(rand);
-    flint_randclear(rand);
+    pismall_free();
+    flint_rand_clear(rand);
 }
